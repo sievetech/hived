@@ -75,7 +75,7 @@ class BaseWorker(object):
 
     def validate_message(self, body):
         """
-        Validates wether a message should be processed.
+        Validates whether a message should be processed.
         body: a deserialized json (the message)
 
         A message is considered valid when this method returns True.
