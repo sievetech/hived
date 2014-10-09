@@ -6,6 +6,13 @@ from .queue import ExternalQueue, SerializationError
 
 
 class BaseWorker(object):
+    """
+    Base worker class.
+
+    It should be extended by implementing the methods
+    process_task() and, optionally, validate_message().
+    It does not begin running until the run() method is called.
+    """
     publisher_exchange = None
 
     def __init__(self, logger,
@@ -67,6 +74,14 @@ class BaseWorker(object):
                     raise
 
     def validate_message(self, body):
+        """
+        Validates wether a message should be processed.
+        body: a deserialized json (the message)
+
+        A message is considered valid when this method returns True.
+        If it returns False or raises and exception, the message is ignored
+        and requeued to a garbage queue.
+        """
         return True
 
     def process_message(self, message, delivery_tag):
@@ -74,6 +89,11 @@ class BaseWorker(object):
         self.queue.ack(delivery_tag)
 
     def process_task(self, task):
+        """
+        Does the actual processing of the task (should be implemented
+        on derived classes).
+        task: a deserialized json (the message).
+        """
         raise NotImplementedError()
 
 
