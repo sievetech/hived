@@ -8,8 +8,8 @@ Sorry, you'll have to check the docstrings, for now. =/
 
 Authors
 ---
-Dalton Barreto
-Elias Tandel
+ - Dalton Barreto
+ - Elias Tandel
 
 License
 ---
