@@ -14,6 +14,7 @@ setup(
     url='https://github.com/sievetech/hived',
     packages=find_packages(),
     install_requires=['amqp==1.4.5', 'simplejson==2.6.2'],
+    test_suite='tests',
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
