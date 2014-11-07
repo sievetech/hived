@@ -34,9 +34,11 @@ class ExternalQueue(object):
             queue.put(msg)
     """
     def __init__(self, host, username, password,
-                 virtual_host='/', exchange=None, queue_name=None):
+                 virtual_host='/', exchange=None, queue_name=None, priority_queue_name=None):
         self.default_exchange = exchange
         self.default_queue_name = queue_name
+        self.priority_queue_name = priority_queue_name
+        self.priority_count = 0
         self.channel = None
         self.subscription = None
 
@@ -130,9 +132,26 @@ class ExternalQueue(object):
         for on ack() and reject() methods. If block is False and there's no
         message on the queue, returns (None, None).
         """
-        queue_name = queue_name or self.default_queue_name
+
+        if queue_name:
+            name_list = [queue_name]
+
+        elif self.priority_queue_name:
+            name_list = [self.priority_queue_name, self.default_queue_name]
+            if self.priority_count in (2, 5, 8):
+                # In 3 of 10 cases it picks the default queue first; otherwise picks the priority queue
+                name_list = name_list[::-1]
+            self.priority_count = (self.priority_count + 1) % 10
+
+        else:
+            name_list = [self.default_queue_name]
+
+        aux = None
         while True:
-            message = self._try('basic_get', queue=queue_name)
+            if not aux:
+                aux = name_list[:]
+
+            message = self._try('basic_get', queue=aux.pop(0))
             if message:
                 body = message.body
                 ack = message.delivery_info['delivery_tag']
@@ -145,10 +164,11 @@ class ExternalQueue(object):
 
                 return message_dict, ack
 
-            if block:
-                time.sleep(.5)
-            else:
-                return None, None
+            if not aux:
+                if block:
+                    time.sleep(.5)
+                else:
+                    return None, None
 
     def ack(self, delivery_tag):
         """
