@@ -34,10 +34,10 @@ class ExternalQueue(object):
             queue.put(msg)
     """
     def __init__(self, host, username, password,
-                 virtual_host='/', exchange=None, queue_name=None, priority_queue_name=None):
+                 virtual_host='/', exchange=None, queue_name=None, priority=False):
         self.default_exchange = exchange
         self.default_queue_name = queue_name
-        self.priority_queue_name = priority_queue_name
+        self.priority_queue_name = queue_name + '_priority' if priority else queue_name
         self.priority_count = 0
         self.channel = None
         self.subscription = None
