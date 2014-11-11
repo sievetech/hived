@@ -13,7 +13,8 @@ setup(
     author_email='daltonmatos@gmail.com',
     url='https://github.com/sievetech/hived',
     packages=find_packages(),
-    install_requires=['amqp==1.4.5', 'simplejson==2.6.2'],
+    entry_points={'console_scripts': ['run_module = hived.run_module:main']},
+    install_requires=['amqp==1.4.5', 'simplejson>=2.6.2'],
     test_suite='tests',
     classifiers=[
         'Intended Audience :: Developers',
