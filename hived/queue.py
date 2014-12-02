@@ -120,6 +120,20 @@ class ExternalQueue(object):
                          exchange=exchange,
                          routing_key=routing_key)
 
+    def _get_message(self, queue_name):
+        message = self._try('basic_get', queue=queue_name)
+        if message:
+            body = message.body
+            ack = message.delivery_info['delivery_tag']
+            try:
+                message_dict = json.loads(body)
+                message_dict.setdefault(META_FIELD, {})
+            except Exception as e:
+                self.ack(ack)
+                raise SerializationError(e, body)
+
+            return message_dict, ack
+
     def get(self, queue_name=None, block=True):
         """
         Gets messages from the queue.
@@ -132,29 +146,16 @@ class ExternalQueue(object):
         for on ack() and reject() methods. If block is False and there's no
         message on the queue, returns (None, None).
         """
-        queue_name_loop = get_queue_name_loop(self.get_queue_name_list(queue_name))
-
         while True:
-            queue_name = next(queue_name_loop)
-            if queue_name is None:
-                if block:
-                    time.sleep(.5)
-                else:
-                    return None, None
-
-            else:
-                message = self._try('basic_get', queue=queue_name)
+            for queue_name in self.get_queue_name_list(queue_name):
+                message = self._get_message(queue_name)
                 if message:
-                    body = message.body
-                    ack = message.delivery_info['delivery_tag']
-                    try:
-                        message_dict = json.loads(body)
-                        message_dict.setdefault(META_FIELD, {})
-                    except Exception as e:
-                        self.ack(ack)
-                        raise SerializationError(e, body)
+                    return message
 
-                    return message_dict, ack
+            if block:
+                time.sleep(.5)
+            else:
+                return None, None
 
     def get_queue_name_list(self, queue_name=None):
         if queue_name:
@@ -164,7 +165,7 @@ class ExternalQueue(object):
             name_list = [self.priority_queue_name, self.default_queue_name]
             if self.priority_count in (2, 5, 8):
                 # In 3 of 10 cases it picks the default queue first; otherwise picks the priority queue
-                name_list = name_list[::-1]
+                name_list = reversed(name_list)
             self.priority_count = (self.priority_count + 1) % 10
 
         else:
@@ -193,14 +194,3 @@ class ExternalQueue(object):
             self.channel.basic_reject(delivery_tag, requeue=True)
         except AMQPError:
             pass  # It's out of our hands already
-
-
-def get_queue_name_loop(name_list):
-    current_loop = name_list[:]
-
-    while True:
-        if current_loop:
-            yield current_loop.pop(0)
-        else:
-            yield None  # warn of the list has ended
-            current_loop = name_list[:]  # reload the list
