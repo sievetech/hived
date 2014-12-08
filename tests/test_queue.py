@@ -5,7 +5,7 @@ import mock
 from amqp import AMQPError, ConnectionError
 import amqp
 
-from hived.queue import (ExternalQueue, ConnectionError, MAX_TRIES, SerializationError, META_FIELD)
+from hived.queue import (ExternalQueue, MAX_TRIES, SerializationError, META_FIELD)
 
 
 class ExternalQueueTest(unittest.TestCase):
