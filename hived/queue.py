@@ -1,8 +1,9 @@
 import time
 import uuid
+import warnings
 
 import amqp
-from amqp import AMQPError
+from amqp import AMQPError, ConnectionError
 import simplejson as json
 
 
@@ -147,8 +148,20 @@ class ExternalQueue(object):
         message on the queue, returns (None, None).
         """
         while True:
-            for queue_name in self.get_queue_name_list(queue_name):
-                message = self._get_message(queue_name)
+            for queue_name in self._get_queue_name_list(queue_name):
+                try:
+                    message = self._get_message(queue_name)
+                except ConnectionError:
+                    if queue_name == self.priority_queue_name:
+                        # TODO: make it log
+                        warnings.warn(
+                            'priority queue does not exist: '
+                            '{}'.format(queue_name)
+                        )
+                        message = None
+                    else:
+                        raise
+
                 if message:
                     return message
 
@@ -157,7 +170,7 @@ class ExternalQueue(object):
             else:
                 return None, None
 
-    def get_queue_name_list(self, queue_name=None):
+    def _get_queue_name_list(self, queue_name=None):
         if queue_name:
             name_list = [queue_name]
 

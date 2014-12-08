@@ -2,7 +2,7 @@ import json
 import unittest
 
 import mock
-from amqp import AMQPError
+from amqp import AMQPError, ConnectionError
 import amqp
 
 from hived.queue import (ExternalQueue, ConnectionError, MAX_TRIES, SerializationError, META_FIELD)
@@ -113,6 +113,29 @@ class ExternalQueueTest(unittest.TestCase):
                               mock.call(queue='queue_name')])
             self.assertEqual(sleep.call_count, 2)
             self.assertEqual(delivery_tag, 'delivery_tag')
+
+    def test_get_crashes_if_default_queue_does_not_exist(self):
+        self.connection_cls_mock.return_value.channel.side_effect = ConnectionError
+        with self.assertRaises(ConnectionError):
+            self.external_queue.get()
+
+    def test_get_does_not_crash_if_priority_queue_does_not_exist(self):
+        is_priority = [True]
+        def side_effect():
+            # The first call is from priority queue
+            if is_priority[0]:
+                is_priority[0] = False
+                raise ConnectionError
+            return self.channel_mock
+        self.connection_cls_mock.return_value.channel.side_effect = side_effect
+        external_queue = ExternalQueue('localhost', 'username', 'pwd',
+                                       exchange='default_exchange',
+                                       queue_name='default_queue',
+                                       priority=True)
+        with mock.patch('hived.queue.warnings') as warnings:
+            self.assertEqual(external_queue.get(), ({'_meta': {}}, 'delivery_tag'))
+            # TODO: use logging instead of warnings
+            warnings.warn.assert_called_once_with('priority queue does not exist: default_queue_priority')
 
     def test_ack_ignores_connection_errors(self):
         self.external_queue.channel = self.channel_mock
