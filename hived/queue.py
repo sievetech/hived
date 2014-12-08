@@ -3,12 +3,17 @@ import uuid
 import warnings
 
 import amqp
-from amqp import AMQPError, ConnectionError
+from amqp import AMQPError, ConnectionError as AMQPConnectionError
 import simplejson as json
 
 
 MAX_TRIES = 3
 META_FIELD = '_meta'
+
+
+class ConnectionError(AMQPConnectionError):
+    def __str__(self):
+        return '%s' % self.message
 
 
 class SerializationError(Exception):
@@ -147,7 +152,7 @@ class ExternalQueue(object):
             for queue_name in self._get_queue_name_list(queue_name):
                 try:
                     message = self._get_message(queue_name)
-                except ConnectionError:
+                except AMQPConnectionError:
                     if queue_name == self.priority_queue_name:
                         # TODO: make it log
                         warnings.warn(
