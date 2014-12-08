@@ -65,7 +65,7 @@ class BaseWorker(object):
 
             try:
                 assert self.validate_message(message)
-            except (AssertionError, KeyError, ValueError) as e:
+            except (AssertionError, TypeError, KeyError, ValueError) as e:
                 m = 'Sending message to garbage queue: %s. Error: %s'
                 self.logger.info(m, message, e)
                 message['garbage_reason'] = str(e)
