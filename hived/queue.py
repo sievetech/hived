@@ -11,10 +11,6 @@ MAX_TRIES = 3
 META_FIELD = '_meta'
 
 
-class ConnectionError(Exception):
-    pass
-
-
 class SerializationError(Exception):
     def __init__(self, exc, body=None):
         self.exc = exc
