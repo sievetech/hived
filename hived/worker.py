@@ -16,13 +16,8 @@ class BaseWorker(object):
     publisher_exchange = None
     use_priority = False
 
-    def __init__(self, logger,
-                 queue_name=None,
-                 queue_host='localhost',
-                 queue_username='guest',
-                 queue_password='guest',
+    def __init__(self, logger, queue_name=None, queue_host='localhost', queue_username='guest', queue_password='guest',
                  queue_virtual_host='/'):
-
         self.logger = logger
         self.queue_name = queue_name
         if isinstance(queue_name, str):
