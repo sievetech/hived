@@ -39,6 +39,7 @@ class ExternalQueue(object):
         self.default_queue_name = queue_name
         self.channel = None
         self.subscription = None
+        self.connection = None
 
         self.connection_parameters = {
             'host': host,

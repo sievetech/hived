@@ -9,8 +9,8 @@ from hived.queue import (ExternalQueue, ConnectionError, MAX_TRIES, Serializatio
 
 
 class ExternalQueueTest(unittest.TestCase):
-    def setUp(self):
 
+    def setUp(self):
         _delivery_info = {'delivery_tag': 'delivery_tag'}
 
         self.message = mock.MagicMock()
@@ -123,6 +123,12 @@ class ExternalQueueTest(unittest.TestCase):
         self.external_queue.channel = self.channel_mock
         self.channel_mock.basic_reject.side_effect = AMQPError
         self.external_queue.reject('delivery_tag')
+
+    def test_does_not_crash_on_context_management(self):
+        queue = self.external_queue
+        with queue as q:
+            self.assertEqual(q, queue)
+        # Do nothing to force close without connection
 
 
 if __name__ == '__main__':
