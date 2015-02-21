@@ -14,6 +14,7 @@ class BaseWorker(object):
     It does not begin running until the run() method is called.
     """
     publisher_exchange = None
+    use_priority = False
 
     def __init__(self, logger,
                  queue_name=None,
@@ -21,18 +22,22 @@ class BaseWorker(object):
                  queue_username='guest',
                  queue_password='guest',
                  queue_virtual_host='/'):
+
         self.logger = logger
         self.queue_name = queue_name
         if isinstance(queue_name, str):
             self.garbage_queue_name = queue_name + '_garbage'
         else:
             self.garbage_queue_name = None
-        self.queue = ExternalQueue(host=queue_host,
-                                   exchange=self.publisher_exchange,
-                                   queue_name=queue_name,
-                                   virtual_host=queue_virtual_host,
-                                   username=queue_username,
-                                   password=queue_password)
+        self.queue = ExternalQueue(
+            host=queue_host,
+            exchange=self.publisher_exchange,
+            queue_name=queue_name,
+            virtual_host=queue_virtual_host,
+            username=queue_username,
+            password=queue_password,
+            priority=self.use_priority,
+        )
         self.stopped = False
 
     def run(self):
@@ -60,7 +65,7 @@ class BaseWorker(object):
 
             try:
                 assert self.validate_message(message)
-            except (AssertionError, KeyError, ValueError) as e:
+            except (AssertionError, TypeError, KeyError, ValueError) as e:
                 m = 'Sending message to garbage queue: %s. Error: %s'
                 self.logger.info(m, message, e)
                 message['garbage_reason'] = str(e)

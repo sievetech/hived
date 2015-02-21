@@ -1,8 +1,9 @@
 import time
 import uuid
+import warnings
 
 import amqp
-from amqp import AMQPError
+from amqp import AMQPError, ConnectionError as AMQPConnectionError
 import simplejson as json
 
 
@@ -10,8 +11,9 @@ MAX_TRIES = 3
 META_FIELD = '_meta'
 
 
-class ConnectionError(Exception):
-    pass
+class ConnectionError(AMQPConnectionError):
+    def __str__(self):
+        return '%s' % self.message
 
 
 class SerializationError(Exception):
@@ -34,9 +36,11 @@ class ExternalQueue(object):
             queue.put(msg)
     """
     def __init__(self, host, username, password,
-                 virtual_host='/', exchange=None, queue_name=None):
+                 virtual_host='/', exchange=None, queue_name=None, priority=False):
         self.default_exchange = exchange
         self.default_queue_name = queue_name
+        self.priority_queue_name = queue_name + '_priority' if priority else None
+        self.priority_count = 0
         self.channel = None
         self.subscription = None
         self.connection = None
@@ -119,6 +123,20 @@ class ExternalQueue(object):
                          exchange=exchange,
                          routing_key=routing_key)
 
+    def _get_message(self, queue_name):
+        message = self._try('basic_get', queue=queue_name)
+        if message:
+            body = message.body
+            ack = message.delivery_info['delivery_tag']
+            try:
+                message_dict = json.loads(body)
+                message_dict.setdefault(META_FIELD, {})
+            except Exception as e:
+                self.ack(ack)
+                raise SerializationError(e, body)
+
+            return message_dict, ack
+
     def get(self, queue_name=None, block=True):
         """
         Gets messages from the queue.
@@ -131,25 +149,44 @@ class ExternalQueue(object):
         for on ack() and reject() methods. If block is False and there's no
         message on the queue, returns (None, None).
         """
-        queue_name = queue_name or self.default_queue_name
         while True:
-            message = self._try('basic_get', queue=queue_name)
-            if message:
-                body = message.body
-                ack = message.delivery_info['delivery_tag']
+            for queue_name in self._get_queue_name_list(queue_name):
                 try:
-                    message_dict = json.loads(body)
-                    message_dict.setdefault(META_FIELD, {})
-                except Exception as e:
-                    self.ack(ack)
-                    raise SerializationError(e, body)
+                    message = self._get_message(queue_name)
+                except AMQPConnectionError:
+                    if queue_name == self.priority_queue_name:
+                        # TODO: make it log
+                        warnings.warn(
+                            'priority queue does not exist: '
+                            '{}'.format(queue_name)
+                        )
+                        message = None
+                    else:
+                        raise
 
-                return message_dict, ack
+                if message:
+                    return message
 
             if block:
                 time.sleep(.5)
             else:
                 return None, None
+
+    def _get_queue_name_list(self, queue_name=None):
+        if queue_name:
+            name_list = [queue_name]
+
+        elif self.priority_queue_name and self.priority_queue_name != self.default_queue_name:
+            name_list = [self.priority_queue_name, self.default_queue_name]
+            if self.priority_count in (2, 5, 8):
+                # In 3 of 10 cases it picks the default queue first; otherwise picks the priority queue
+                name_list = reversed(name_list)
+            self.priority_count = (self.priority_count + 1) % 10
+
+        else:
+            name_list = [self.default_queue_name]
+
+        return name_list
 
     def ack(self, delivery_tag):
         """
@@ -172,4 +209,3 @@ class ExternalQueue(object):
             self.channel.basic_reject(delivery_tag, requeue=True)
         except AMQPError:
             pass  # It's out of our hands already
-

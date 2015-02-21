@@ -2,10 +2,10 @@ import json
 import unittest
 
 import mock
-from amqp import AMQPError
+from amqp import AMQPError, ConnectionError
 import amqp
 
-from hived.queue import (ExternalQueue, ConnectionError, MAX_TRIES, SerializationError, META_FIELD)
+from hived.queue import (ExternalQueue, MAX_TRIES, SerializationError, META_FIELD)
 
 
 class ExternalQueueTest(unittest.TestCase):
@@ -114,6 +114,29 @@ class ExternalQueueTest(unittest.TestCase):
             self.assertEqual(sleep.call_count, 2)
             self.assertEqual(delivery_tag, 'delivery_tag')
 
+    def test_get_crashes_if_default_queue_does_not_exist(self):
+        self.connection_cls_mock.return_value.channel.side_effect = ConnectionError
+        with self.assertRaises(ConnectionError):
+            self.external_queue.get()
+
+    def test_get_does_not_crash_if_priority_queue_does_not_exist(self):
+        is_priority = [True]
+        def side_effect():
+            # The first call is from priority queue
+            if is_priority[0]:
+                is_priority[0] = False
+                raise ConnectionError
+            return self.channel_mock
+        self.connection_cls_mock.return_value.channel.side_effect = side_effect
+        external_queue = ExternalQueue('localhost', 'username', 'pwd',
+                                       exchange='default_exchange',
+                                       queue_name='default_queue',
+                                       priority=True)
+        with mock.patch('hived.queue.warnings') as warnings:
+            self.assertEqual(external_queue.get(), ({'_meta': {}}, 'delivery_tag'))
+            # TODO: use logging instead of warnings
+            warnings.warn.assert_called_once_with('priority queue does not exist: default_queue_priority')
+
     def test_ack_ignores_connection_errors(self):
         self.external_queue.channel = self.channel_mock
         self.channel_mock.basic_ack.side_effect = AMQPError
@@ -129,6 +152,100 @@ class ExternalQueueTest(unittest.TestCase):
         with queue as q:
             self.assertEqual(q, queue)
         # Do nothing to force close without connection
+
+
+class PriorityQueueTest(unittest.TestCase):
+    def setUp(self):
+        _delivery_info = {'delivery_tag': 'delivery_tag'}
+
+        self.message = mock.MagicMock()
+        self.message.body = "{}"
+        self.message.delivery_info = _delivery_info
+
+
+        self.channel_mock = mock.MagicMock()
+        self.channel_mock.basic_get.return_value = self.message
+
+        self.connection = mock.MagicMock()
+        self.connection.channel.return_value = self.channel_mock
+
+        self.connection_cls_patcher = mock.patch('amqp.Connection',
+                                                 return_value=self.connection)
+        self.connection_cls_mock = self.connection_cls_patcher.start()
+
+        self.external_queue = ExternalQueue('localhost', 'username', 'pwd',
+                                            exchange='default_exchange',
+                                            queue_name='default_queue',
+                                            priority=True)
+
+    def tearDown(self):
+        self.connection_cls_patcher.stop()
+
+    def test_try_another_queue_on_failure(self):
+        self.channel_mock.basic_get.return_value = None
+        self.external_queue.get(block=False)
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue_priority'),
+                                                                      mock.call(queue='default_queue')])
+
+    def test_get_uses_priority_queue_0(self):
+        self.external_queue.priority_count = 0
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue_priority')])
+        self.assertEqual(self.external_queue.priority_count, 1)
+
+    def test_get_uses_priority_queue_1(self):
+        self.external_queue.priority_count = 1
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue_priority')])
+        self.assertEqual(self.external_queue.priority_count, 2)
+
+    def test_get_uses_default_queue_2(self):
+        self.external_queue.priority_count = 2
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue')])
+        self.assertEqual(self.external_queue.priority_count, 3)
+
+    def test_get_uses_priority_queue_3(self):
+        self.external_queue.priority_count = 3
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue_priority')])
+        self.assertEqual(self.external_queue.priority_count, 4)
+
+    def test_get_uses_priority_queue_4(self):
+        self.external_queue.priority_count = 4
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue_priority')])
+        self.assertEqual(self.external_queue.priority_count, 5)
+
+    def test_get_uses_default_queue_5(self):
+        self.external_queue.priority_count = 5
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue')])
+        self.assertEqual(self.external_queue.priority_count, 6)
+
+    def test_get_uses_priority_queue_6(self):
+        self.external_queue.priority_count = 6
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue_priority')])
+        self.assertEqual(self.external_queue.priority_count, 7)
+
+    def test_get_uses_priority_queue_7(self):
+        self.external_queue.priority_count = 7
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue_priority')])
+        self.assertEqual(self.external_queue.priority_count, 8)
+
+    def test_get_uses_default_queue_8(self):
+        self.external_queue.priority_count = 8
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue')])
+        self.assertEqual(self.external_queue.priority_count, 9)
+
+    def test_get_uses_priority_queue_9(self):
+        self.external_queue.priority_count = 9
+        self.external_queue.get()
+        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue_priority')])
+        self.assertEqual(self.external_queue.priority_count, 0)
 
 
 if __name__ == '__main__':

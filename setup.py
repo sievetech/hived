@@ -15,6 +15,7 @@ setup(
     packages=find_packages(),
     entry_points={'console_scripts': ['run_module = hived.run_module:main']},
     install_requires=['amqp==1.4.5', 'simplejson>=2.6.2'],
+    test_suite='tests',
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
