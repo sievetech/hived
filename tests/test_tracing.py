@@ -13,13 +13,6 @@ class TracingTest(unittest.TestCase):
         tracing._local.tracing_id = 42
         self.assertEqual(tracing.get_id(), 42)
 
-    def test_get_generates_a_new_id_and_returns_it_if_there_is_no_current_id(self):
-        tracing._local.tracing_id = None
-        with patch('hived.tracing.generate_id', return_value=42),\
-                patch('hived.tracing.set_id') as set_id_mock:
-            self.assertEqual(tracing.get_id(), 42)
-            self.assertEqual(set_id_mock.call_args_list, [call(42)])
-
     def test_set_id(self):
         tracing._local.tracing_id = None
         tracing.set_id(42)

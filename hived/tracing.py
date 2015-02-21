@@ -10,11 +10,7 @@ def generate_id():
 
 
 def get_id():
-    id_ = getattr(_local, 'tracing_id', None)
-    if not id_:
-        id_ = generate_id()
-        set_id(id_)
-    return id_
+    return getattr(_local, 'tracing_id', None)
 
 
 def set_id(id_):
