@@ -1,22 +1,20 @@
 import json
 import unittest
 
-import mock
 from amqp import AMQPError, ConnectionError
 import amqp
+import mock
 
-from hived.queue import (ExternalQueue, MAX_TRIES, SerializationError, META_FIELD)
+from hived.queue import ExternalQueue, MAX_TRIES, SerializationError, META_FIELD, TRACING_ID_FIELD
 
 
 class ExternalQueueTest(unittest.TestCase):
-
     def setUp(self):
         _delivery_info = {'delivery_tag': 'delivery_tag'}
 
         self.message = mock.MagicMock()
-        self.message.body = "{}"
+        self.message.body = json.dumps({TRACING_ID_FIELD: 42})
         self.message.delivery_info = _delivery_info
-
 
         self.channel_mock = mock.MagicMock()
         self.channel_mock.basic_get.return_value = self.message
@@ -28,12 +26,17 @@ class ExternalQueueTest(unittest.TestCase):
                                                  return_value=self.connection)
         self.connection_cls_mock = self.connection_cls_patcher.start()
 
+        self.tracing_id = 'tracing_id'
+        self.tracing_patcher = mock.patch('hived.tracing.get_id', return_value=self.tracing_id)
+        self.tracing_patcher.start()
+
         self.external_queue = ExternalQueue('localhost', 'username', 'pwd',
                                             exchange='default_exchange',
                                             queue_name='default_queue')
 
     def tearDown(self):
         self.connection_cls_patcher.stop()
+        self.tracing_patcher.stop()
 
     def test__try_connects_if_disconnected(self):
         self.channel_mock.method.return_value = 'rv'
@@ -66,8 +69,18 @@ class ExternalQueueTest(unittest.TestCase):
                                     exchange='default_exchange',
                                     routing_key='')])
 
+    def test_put_adds_tracing_id_to_messages(self):
+        message_dict = {'key': 'value', TRACING_ID_FIELD: self.tracing_id}
+        amqp_msg = amqp.basic_message.Message(json.dumps(message_dict),
+                                              delivery_mode=2,
+                                              content_type='application/json')
+
+        self.external_queue.put(message_dict={'key': 'value'})
+        self.assertEqual(self.channel_mock.basic_publish.call_args_list[0][1]['msg'],
+                         amqp_msg)
+
     def test_put_serializes_message_if_necessary(self):
-        message_dict = {'key': 'value'}
+        message_dict = {'key': 'value', TRACING_ID_FIELD: None}
         amqp_msg = amqp.basic_message.Message(json.dumps(message_dict),
                                               delivery_mode=2,
                                               content_type='application/json')
@@ -94,8 +107,14 @@ class ExternalQueueTest(unittest.TestCase):
 
     def test_get_deserializes_the_message_body_and_sets_meta_field(self):
         message, ack = self.external_queue.get()
-        self.assertEqual(message, {META_FIELD: {}})
+        self.assertEqual(message[META_FIELD], {})
         self.assertEqual(ack, 'delivery_tag')
+
+    def test_get_sets_the_tracing_id(self):
+        with mock.patch('hived.tracing.set_id') as set_id_mock:
+            message, ack = self.external_queue.get()
+            self.assertEqual(set_id_mock.call_args_list, [mock.call(42)])
+            self.assertEqual(ack, 'delivery_tag')
 
     def test_get_raises_serialization_error_if_message_body_cant_be_parsed(self):
         self.message.body = ValueError
@@ -121,6 +140,7 @@ class ExternalQueueTest(unittest.TestCase):
 
     def test_get_does_not_crash_if_priority_queue_does_not_exist(self):
         is_priority = [True]
+
         def side_effect():
             # The first call is from priority queue
             if is_priority[0]:
@@ -133,7 +153,7 @@ class ExternalQueueTest(unittest.TestCase):
                                        queue_name='default_queue',
                                        priority=True)
         with mock.patch('hived.queue.warnings') as warnings:
-            self.assertEqual(external_queue.get(), ({'_meta': {}}, 'delivery_tag'))
+            self.assertEqual(external_queue.get(), ({META_FIELD: {}, TRACING_ID_FIELD: 42}, 'delivery_tag'))
             # TODO: use logging instead of warnings
             warnings.warn.assert_called_once_with('priority queue does not exist: default_queue_priority')
 
@@ -161,7 +181,6 @@ class PriorityQueueTest(unittest.TestCase):
         self.message = mock.MagicMock()
         self.message.body = "{}"
         self.message.delivery_info = _delivery_info
-
 
         self.channel_mock = mock.MagicMock()
         self.channel_mock.basic_get.return_value = self.message

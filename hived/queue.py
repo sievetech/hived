@@ -6,9 +6,12 @@ import amqp
 from amqp import AMQPError, ConnectionError as AMQPConnectionError
 import simplejson as json
 
+from hived import tracing
+
 
 MAX_TRIES = 3
 META_FIELD = '_meta'
+TRACING_ID_FIELD = '_tracing_id'
 
 
 class ConnectionError(AMQPConnectionError):
@@ -35,8 +38,7 @@ class ExternalQueue(object):
         for msg in msgs:
             queue.put(msg)
     """
-    def __init__(self, host, username, password,
-                 virtual_host='/', exchange=None, queue_name=None, priority=False):
+    def __init__(self, host, username, password, virtual_host='/', exchange=None, queue_name=None, priority=False):
         self.default_exchange = exchange
         self.default_queue_name = queue_name
         self.priority_queue_name = queue_name + '_priority' if priority else None
@@ -111,6 +113,7 @@ class ExternalQueue(object):
 
         if body is None:
             try:
+                message_dict.setdefault(TRACING_ID_FIELD, tracing.get_id())
                 body = json.dumps(message_dict)
             except Exception as e:
                 raise SerializationError(e)
@@ -135,6 +138,7 @@ class ExternalQueue(object):
                 self.ack(ack)
                 raise SerializationError(e, body)
 
+            tracing.set_id(message_dict.get(TRACING_ID_FIELD))
             return message_dict, ack
 
     def get(self, queue_name=None, block=True):

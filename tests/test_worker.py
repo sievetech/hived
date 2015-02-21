@@ -17,7 +17,7 @@ class BaseWorkerTest(unittest.TestCase):
                 raise exc
 
         queue_name = 'myqueue'
-        w = W(Mock(), queue_name)
+        w = W(Mock(), queue_name=queue_name)
         w.queue = Mock()
         w.queue.get.return_value = ({}, 1)
 

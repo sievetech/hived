@@ -1,6 +1,6 @@
 import random
-import time
 from threading import Thread
+import time
 
 from .queue import ExternalQueue, SerializationError
 
@@ -16,13 +16,8 @@ class BaseWorker(object):
     publisher_exchange = None
     use_priority = False
 
-    def __init__(self, logger,
-                 queue_name=None,
-                 queue_host='localhost',
-                 queue_username='guest',
-                 queue_password='guest',
+    def __init__(self, logger, queue_name=None, queue_host='localhost', queue_username='guest', queue_password='guest',
                  queue_virtual_host='/'):
-
         self.logger = logger
         self.queue_name = queue_name
         if isinstance(queue_name, str):
@@ -118,7 +113,6 @@ class BaseWorkerThread(BaseWorker, Thread):
 class SubscriberWorkerThread(BaseWorkerThread):
     subscription_routing_key = None
 
-    def __init__(self, logger):
-        super(SubscriberWorkerThread, self).__init__(logger, queue_virtual_host='notifications')
+    def __init__(self, queue_virtual_host='notifications', *args, **kwargs):
+        super(SubscriberWorkerThread, self).__init__(queue_virtual_host=queue_virtual_host, *args, **kwargs)
         self.queue.subscribe(self.subscription_routing_key)
-
