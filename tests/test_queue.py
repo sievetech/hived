@@ -79,6 +79,17 @@ class ExternalQueueTest(unittest.TestCase):
         self.assertEqual(self.channel_mock.basic_publish.call_args_list[0][1]['msg'],
                          amqp_msg)
 
+    def test_put_generates_new_tracing_id_to_messages_if_requested(self):
+        message_dict = {'key': 'value', TRACING_ID_FIELD: 'new_tracing_id'}
+        amqp_msg = amqp.basic_message.Message(json.dumps(message_dict),
+                                              delivery_mode=2,
+                                              content_type='application/json')
+
+        with mock.patch('hived.tracing.generate_id', return_value=message_dict[TRACING_ID_FIELD]):
+            self.external_queue.put(message_dict={'key': 'value'}, start_tracing=True)
+        self.assertEqual(self.channel_mock.basic_publish.call_args_list[0][1]['msg'],
+                         amqp_msg)
+
     def test_put_serializes_message_if_necessary(self):
         message_dict = {'key': 'value', TRACING_ID_FIELD: None}
         amqp_msg = amqp.basic_message.Message(json.dumps(message_dict),
@@ -94,7 +105,7 @@ class ExternalQueueTest(unittest.TestCase):
                                     routing_key='routing_key')])
 
     def test_put_raises_serialization_error_if_message_cant_be_serialized_to_json(self):
-        self.assertRaises(SerializationError, self.external_queue.put, message_dict=ValueError)
+        self.assertRaises(SerializationError, self.external_queue.put, message_dict={'message': ValueError})
 
     def test_get_uses_default_queue_if_not_supplied(self):
         self.external_queue.get()
