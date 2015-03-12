@@ -98,7 +98,7 @@ class ExternalQueue(object):
         self.subscription = routing_key
         self._connect()
 
-    def put(self, message_dict=None, routing_key='', exchange=None, body=None, start_tracing=False):
+    def put(self, message_dict=None, routing_key='', exchange=None, body=None):
         """
         Publishes a message to the queue.
         message_dict: the json-serializable object that will be published
@@ -107,18 +107,13 @@ class ExternalQueue(object):
         exchange: the exchange to which the message will be published.
             Defaults to the one passed on __init___().  key
         body: The message to be published. If none, message_dict is published.
-        start_tracing: ignore tracing_id set in the thread's local and create a new one for this message
         """
         if exchange is None:
             exchange = self.default_exchange or ''
 
         if body is None:
-            if start_tracing:
-                message_dict[TRACING_ID_FIELD] = tracing.generate_id()
-            else:
-                message_dict.setdefault(TRACING_ID_FIELD, tracing.get_id())
-
             try:
+                message_dict.setdefault(TRACING_ID_FIELD, tracing.get_id())
                 body = json.dumps(message_dict)
             except Exception as e:
                 raise SerializationError(e)
