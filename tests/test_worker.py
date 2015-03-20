@@ -7,27 +7,17 @@ from hived.worker import BaseWorker
 
 
 class BaseWorkerTest(unittest.TestCase):
-    def test_bad_messages_are_thrown_out(self):
-        exc = AssertionError('bad bad bad')
-
-        class W(BaseWorker):
-            def validate_message(self, body):
-                # make sure it halts
-                self.stopped = True
-                raise exc
-
+    def test_send_invalid_messages_to_garbage(self):
         queue_name = 'myqueue'
-        w = W(Mock(), queue_name=queue_name)
-        w.queue = Mock()
-        w.queue.get.return_value = ({}, 1)
+        worker = BaseWorker(Mock(), queue_name=queue_name)
+        worker.queue = Mock()
 
-        w.run()
+        error = Mock()
+        worker.send_message_to_garbage({'message': 'content'}, 'ack', error)
 
-        self.assertEqual(w.queue.put.call_args,
-                         call({'garbage_reason': str(exc)},
-                              queue_name + '_garbage',
-                              exchange=''))
-        self.assertTrue(w.queue.ack.called)
+        self.assertEqual(worker.queue.put.call_args,
+                         call({'garbage_reason': str(error), 'message': 'content'}, queue_name + '_garbage'))
+        self.assertEqual(worker.queue.ack.call_count, 1)
 
     def test_worker_waits_before_restarting_after_a_crash(self):
         exc = AssertionError('bad bad bad')

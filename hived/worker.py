@@ -54,7 +54,7 @@ class BaseWorker(object):
     def send_message_to_garbage(self, message, delivery_tag, error):
         self.logger.info('Sending message to garbage queue: %s. Error: %s', message, error)
         message['garbage_reason'] = str(error)
-        self.queue.put(message, self.garbage_queue_name, exchange='')
+        self.queue.put(message, self.garbage_queue_name)
         self.queue.ack(delivery_tag)
 
     def protected_run(self):
