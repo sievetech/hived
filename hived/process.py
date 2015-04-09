@@ -2,24 +2,36 @@ import argparse
 import logging
 import logging.handlers
 import os
+import socket
 import sys
+from hived import conf
 
 from hived.log import JsonFormatter
 
 
-def get_logging_handlers(process_name):
+def get_logging_handlers(process_name, add_log_handler=False):
     """Returns a list of logging handlers, each with their level already set"""
     std_out = logging.StreamHandler(sys.stdout)
     std_out.setLevel(logging.DEBUG)
+    handlers = [std_out]
 
-    path = os.path.expanduser('~/logs')
-    if not os.path.isdir(path):
-        os.mkdir(path)
-    rotating_file = logging.handlers.RotatingFileHandler('%s/%s.log' % (path, process_name), maxBytes=10000000,
-                                                         backupCount=10, encoding='utf-8')
-    rotating_file.setLevel(logging.INFO)
+    if conf.TEST:
+        return handlers
 
-    return [std_out, rotating_file]
+    syslog = logging.handlers.SysLogHandler(address=('localhost', 5515), socktype=socket.SOCK_STREAM)
+    syslog.setLevel(logging.INFO)
+    handlers.append(syslog)
+
+    if add_log_handler:
+        path = os.path.expanduser('~/logs')
+        if not os.path.isdir(path):
+            os.mkdir(path)
+        rotating_file = logging.handlers.RotatingFileHandler('%s/%s.log' % (path, process_name), maxBytes=10000000,
+                                                             backupCount=10, encoding='utf-8')
+        rotating_file.setLevel(logging.INFO)
+        handlers.append(rotating_file)
+
+    return handlers
 
 
 def configure_logging(process_name, handlers):
@@ -44,6 +56,7 @@ class Process(object):
     name = None
     worker_class = None
     default_workers = 1
+    log_to_file = False  # Set to true for processes that have a low log rate and are important
 
     def __new__(cls, *args, **kwargs):
         if cls._created:
@@ -59,7 +72,7 @@ class Process(object):
         return parser
 
     def get_logging_handlers(self):
-        return get_logging_handlers(self.name)
+        return get_logging_handlers(self.name, add_log_handler=self.log_to_file)
 
     def configure_logging(self):
         return configure_logging(self.name, self.get_logging_handlers())
