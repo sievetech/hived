@@ -1,11 +1,10 @@
 import logging
-import socket
-import sys
 import unittest
 
 from mock import Mock, patch, call
+import sys
 
-from hived.process import Process, get_logging_handlers
+from hived.process import Process
 
 
 class SampleProcess(Process):
@@ -19,12 +18,6 @@ class ProcessTest(unittest.TestCase):
         SampleProcess._created = False
         SampleProcess.worker_class = Mock()
         self.process = SampleProcess()
-
-        self.socket_patcher = patch('socket.socket')
-        self.socket_patcher.start()
-
-    def tearDown(self):
-        self.socket_patcher.stop()
 
     def test_raises_runtime_error_if_we_try_to_create_two_instances(self):
         self.assertRaises(RuntimeError, SampleProcess)
@@ -41,31 +34,25 @@ class ProcessTest(unittest.TestCase):
     def test_creates_logging_handlers(self):
         with patch('logging.StreamHandler') as stream_handler,\
                 patch('logging.handlers.RotatingFileHandler') as rotating_file_handler,\
-                patch('logging.handlers.SysLogHandler') as syslog_file_handler,\
                 patch('os.path.expanduser', return_value='home_dir'),\
                 patch('os.path.isdir', return_value=True):
-            handlers = get_logging_handlers('process_name', add_log_handler=True)
+            handlers = self.process.get_logging_handlers()
 
-            self.assertEqual(handlers, [stream_handler.return_value, syslog_file_handler.return_value,
-                                        rotating_file_handler.return_value])
+            self.assertEqual(handlers, [stream_handler.return_value, rotating_file_handler.return_value])
 
             self.assertEqual(stream_handler.call_args_list, [call(sys.stdout)])
             self.assertEqual(stream_handler.return_value.setLevel.call_args_list, [call(logging.DEBUG)])
-
-            self.assertEqual(syslog_file_handler.call_args_list,
-                             [call(address=('localhost', 5515), socktype=socket.SOCK_STREAM)])
-            self.assertEqual(syslog_file_handler.return_value.setLevel.call_args_list, [call(logging.INFO)])
 
             self.assertEqual(rotating_file_handler.call_args_list,
                              [call('home_dir/process_name.log', maxBytes=10000000, backupCount=10, encoding='utf-8')])
             self.assertEqual(rotating_file_handler.return_value.setLevel.call_args_list, [call(logging.INFO)])
 
-    def test_get_logging_handlers_creates_log_dir_if_it_doesnt_exist(self):
+    def test_create_logging_handlers_creates_log_dir_if_it_doesnt_exist(self):
         with patch('os.path.expanduser', return_value='home_dir'),\
                 patch('os.path.isdir', return_value=False) as isdir_mock,\
                 patch('logging.handlers.RotatingFileHandler'),\
                 patch('os.mkdir') as mkdir_mock:
-            get_logging_handlers('name', add_log_handler=True)
+            self.process.get_logging_handlers()
 
             isdir_mock.return_value = True
             self.process.get_logging_handlers()
