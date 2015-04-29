@@ -27,7 +27,7 @@ class ExternalQueueTest(unittest.TestCase):
         self.connection_cls_mock = self.connection_cls_patcher.start()
 
         self.tracing_id = 'tracing_id'
-        self.tracing_patcher = mock.patch('hived.tracing.get_id', return_value=self.tracing_id)
+        self.tracing_patcher = mock.patch(ExternalQueue.__module__ + '.tracing.get_id', return_value=self.tracing_id)
         self.tracing_patcher.start()
 
         self.external_queue = ExternalQueue('localhost', 'username', 'pwd',
@@ -111,7 +111,7 @@ class ExternalQueueTest(unittest.TestCase):
         self.assertEqual(ack, 'delivery_tag')
 
     def test_get_sets_the_tracing_id(self):
-        with mock.patch('hived.tracing.set_id') as set_id_mock:
+        with mock.patch(ExternalQueue.__module__ + '.tracing.set_id') as set_id_mock:
             message, ack = self.external_queue.get()
             self.assertEqual(set_id_mock.call_args_list, [mock.call(42)])
             self.assertEqual(ack, 'delivery_tag')

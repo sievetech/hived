@@ -15,6 +15,7 @@ class BaseWorker(object):
     """
     publisher_exchange = None
     use_priority = False
+    task_class = None
 
     def __init__(self, logger, queue_name=None, queue_host='localhost', queue_username='guest', queue_password='guest',
                  queue_virtual_host='/'):
@@ -50,6 +51,12 @@ class BaseWorker(object):
                 self.logger.exception(m, self, wait_time, e)
                 time.sleep(wait_time)
 
+    def send_message_to_garbage(self, message, delivery_tag, error):
+        self.logger.info('Sending message to garbage queue: %s. Error: %s', message, error)
+        message['garbage_reason'] = str(error)
+        self.queue.put(message, self.garbage_queue_name)
+        self.queue.ack(delivery_tag)
+
     def protected_run(self):
         while not self.stopped:
             try:
@@ -60,33 +67,33 @@ class BaseWorker(object):
 
             try:
                 assert self.validate_message(message)
+                task = self.get_task(message)
             except (AssertionError, TypeError, KeyError, ValueError) as e:
-                m = 'Sending message to garbage queue: %s. Error: %s'
-                self.logger.info(m, message, e)
-                message['garbage_reason'] = str(e)
-                self.queue.put(message, self.garbage_queue_name, exchange='')
-                self.queue.ack(delivery_tag)
+                self.send_message_to_garbage(message, delivery_tag, e)
             else:
                 try:
-                    self.process_message(message, delivery_tag)
+                    self.process_task(task)
                 except:
                     self.queue.reject(delivery_tag)
                     raise
+                else:
+                    self.queue.ack(delivery_tag)
 
-    def validate_message(self, body):
+    def validate_message(self, message):
         """
         Validates whether a message should be processed.
-        body: a deserialized json (the message)
+        message: the deserialized json
 
         A message is considered valid when this method returns True.
-        If it returns False or raises and exception, the message is ignored
+        If it returns False or raises an exception, the message is ignored
         and requeued to a garbage queue.
         """
         return True
 
-    def process_message(self, message, delivery_tag):
-        self.process_task(message)
-        self.queue.ack(delivery_tag)
+    def get_task(self, message):
+        if self.task_class is not None:
+            return self.task_class(message)
+        return message
 
     def process_task(self, task):
         """
