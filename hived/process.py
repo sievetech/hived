@@ -6,6 +6,12 @@ import sys
 
 from hived.log import JsonFormatter
 
+_name = None
+
+
+def get_name():
+    return _name
+
 
 def get_logging_handlers(process_name):
     """Returns a list of logging handlers, each with their level already set"""
@@ -23,6 +29,10 @@ def get_logging_handlers(process_name):
 
 
 def configure_logging(process_name, handlers):
+    # Leaving this here because it is the only piece code currently being called by all processes
+    global _name
+    _name = process_name
+
     root = logging.getLogger('root')
     root.setLevel(logging.NOTSET)
     root.addHandler(logging.NullHandler())
@@ -45,12 +55,12 @@ class Process(object):
     worker_class = None
     default_workers = 1
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args):
         if cls._created:
             raise RuntimeError('%s instance already created' % cls.__name__)
 
         cls._created = True
-        return object.__new__(cls, *args, **kwargs)
+        return object.__new__(cls, *args)
 
     def get_arg_parser(self):
         parser = argparse.ArgumentParser(description='Start %s' % self.name)

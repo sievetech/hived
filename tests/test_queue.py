@@ -4,16 +4,21 @@ import unittest
 from amqp import AMQPError, ConnectionError
 import amqp
 import mock
+from hived import trail
 
-from hived.queue import ExternalQueue, MAX_TRIES, SerializationError, META_FIELD, TRACING_ID_FIELD
+from hived.queue import ExternalQueue, MAX_TRIES, SerializationError, META_FIELD, TRAIL_FIELD
 
 
 class ExternalQueueTest(unittest.TestCase):
     def setUp(self):
+        self.trail = {'id_': 'trail_id', 'live': 'live'}
+        self.trail_patcher = mock.patch('hived.trail.get_trail', return_value=self.trail)
+        self.trail_patcher.start()
+
         _delivery_info = {'delivery_tag': 'delivery_tag'}
 
         self.message = mock.MagicMock()
-        self.message.body = json.dumps({TRACING_ID_FIELD: 42})
+        self.message.body = json.dumps({TRAIL_FIELD: self.trail})
         self.message.delivery_info = _delivery_info
 
         self.channel_mock = mock.MagicMock()
@@ -26,17 +31,13 @@ class ExternalQueueTest(unittest.TestCase):
                                                  return_value=self.connection)
         self.connection_cls_mock = self.connection_cls_patcher.start()
 
-        self.tracing_id = 'tracing_id'
-        self.tracing_patcher = mock.patch(ExternalQueue.__module__ + '.tracing.get_id', return_value=self.tracing_id)
-        self.tracing_patcher.start()
-
         self.external_queue = ExternalQueue('localhost', 'username', 'pwd',
                                             exchange='default_exchange',
                                             queue_name='default_queue')
 
     def tearDown(self):
         self.connection_cls_patcher.stop()
-        self.tracing_patcher.stop()
+        self.trail_patcher.stop()
 
     def test__try_connects_if_disconnected(self):
         self.channel_mock.method.return_value = 'rv'
@@ -69,8 +70,8 @@ class ExternalQueueTest(unittest.TestCase):
                                     exchange='default_exchange',
                                     routing_key='')])
 
-    def test_put_adds_tracing_id_to_messages(self):
-        message_dict = {'key': 'value', TRACING_ID_FIELD: self.tracing_id}
+    def test_put_adds_trail_key_to_messages(self):
+        message_dict = {'key': 'value', TRAIL_FIELD: self.trail}
         amqp_msg = amqp.basic_message.Message(json.dumps(message_dict),
                                               delivery_mode=2,
                                               content_type='application/json')
@@ -80,7 +81,7 @@ class ExternalQueueTest(unittest.TestCase):
                          amqp_msg)
 
     def test_put_serializes_message_if_necessary(self):
-        message_dict = {'key': 'value', TRACING_ID_FIELD: None}
+        message_dict = {'key': 'value', TRAIL_FIELD: self.trail}
         amqp_msg = amqp.basic_message.Message(json.dumps(message_dict),
                                               delivery_mode=2,
                                               content_type='application/json')
@@ -110,11 +111,16 @@ class ExternalQueueTest(unittest.TestCase):
         self.assertEqual(message[META_FIELD], {})
         self.assertEqual(ack, 'delivery_tag')
 
-    def test_get_sets_the_tracing_id(self):
-        with mock.patch(ExternalQueue.__module__ + '.tracing.set_id') as set_id_mock:
+    def test_get_calls_set_trail(self):
+        with mock.patch('hived.trail.set_trail') as set_trail_mock:
             message, ack = self.external_queue.get()
-            self.assertEqual(set_id_mock.call_args_list, [mock.call(42)])
+            self.assertEqual(set_trail_mock.call_args_list, [mock.call(id_='trail_id', live='live')])
             self.assertEqual(ack, 'delivery_tag')
+
+    def test_get_traces_process_entered_event(self):
+        with mock.patch('hived.trail.trace') as trace_mock:
+            self.external_queue.get()
+            self.assertEqual(trace_mock.call_args_list, [mock.call(type_=trail.EventType.process_entered)])
 
     def test_get_raises_serialization_error_if_message_body_cant_be_parsed(self):
         self.message.body = ValueError
@@ -153,7 +159,7 @@ class ExternalQueueTest(unittest.TestCase):
                                        queue_name='default_queue',
                                        priority=True)
         with mock.patch('hived.queue.warnings') as warnings:
-            self.assertEqual(external_queue.get(), ({META_FIELD: {}, TRACING_ID_FIELD: 42}, 'delivery_tag'))
+            self.assertEqual(external_queue.get(), ({META_FIELD: {}, TRAIL_FIELD: self.trail}, 'delivery_tag'))
             # TODO: use logging instead of warnings
             warnings.warn.assert_called_once_with('priority queue does not exist: default_queue_priority')
 

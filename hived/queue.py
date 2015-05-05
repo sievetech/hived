@@ -6,12 +6,12 @@ import amqp
 from amqp import AMQPError, ConnectionError as AMQPConnectionError
 import simplejson as json
 
-from hived import tracing
+from hived import trail
 
 
 MAX_TRIES = 3
 META_FIELD = '_meta'
-TRACING_ID_FIELD = '_tracing_id'
+TRAIL_FIELD = '_trail'
 
 
 class ConnectionError(AMQPConnectionError):
@@ -114,7 +114,7 @@ class ExternalQueue(object):
 
         if body is None:
             try:
-                message_dict.setdefault(TRACING_ID_FIELD, tracing.get_id())
+                message_dict[TRAIL_FIELD] = trail.get_trail()
                 body = json.dumps(message_dict)
             except Exception as e:
                 raise SerializationError(e)
@@ -139,7 +139,8 @@ class ExternalQueue(object):
                 self.ack(ack)
                 raise SerializationError(e, body)
 
-            tracing.set_id(message_dict.get(TRACING_ID_FIELD))
+            trail.set_trail(**message_dict.get(TRAIL_FIELD, {}))
+            trail.trace(type_=trail.EventType.process_entered)
             return message_dict, ack
 
     def get(self, queue_name=None, block=True):

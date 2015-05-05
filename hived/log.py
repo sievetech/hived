@@ -1,7 +1,8 @@
 import logging
 
-from hived import tracing
 import simplejson as json
+
+from hived import trail
 
 
 def json_handler(obj):
@@ -23,7 +24,7 @@ class JsonFormatter(logging.Formatter):
         record_dict['_time'] = self.formatTime(record)
         record_dict['_level'] = record.levelname
         record_dict['_name'] = record.name
-        if tracing.get_id():
-            record_dict['_tracing_id'] = tracing.get_id()
+        if trail.get_id():
+            record_dict['_trail_id'] = trail.get_id()
 
         return json.dumps(record_dict, default=json_handler)

@@ -2,7 +2,8 @@ import random
 from threading import Thread
 import time
 
-from .queue import ExternalQueue, SerializationError
+from hived import trail
+from hived.queue import ExternalQueue, SerializationError
 
 
 class BaseWorker(object):
@@ -49,6 +50,7 @@ class BaseWorker(object):
             except Exception as e:
                 m = '%s died, restarting in %s seconds. Exception: %s'
                 self.logger.exception(m, self, wait_time, e)
+                trail.trace_exception(e)
                 time.sleep(wait_time)
 
     def send_message_to_garbage(self, message, delivery_tag, error):
