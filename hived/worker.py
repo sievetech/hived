@@ -7,7 +7,7 @@ from hived import trail
 from hived.queue import ExternalQueue, SerializationError
 
 
-class BaseWorker(object):
+class BaseWorker(Thread):
     """
     Base worker class.
 
@@ -21,6 +21,11 @@ class BaseWorker(object):
 
     def __init__(self, logger, queue_name=None, queue_host=conf.QUEUE_HOST, queue_username=conf.QUEUE_USER,
                  queue_password=conf.QUEUE_PASSWORD, queue_virtual_host='/'):
+        count = getattr(self.__class__, '__instance_count', 0)
+        count += 1
+        setattr(self.__class__, '__instance_count', count)
+        Thread.__init__(self, name='%s-%s' % (self.__class__.__name__, count))
+
         self.logger = logger
         self.queue_name = queue_name
         if isinstance(queue_name, str):
@@ -106,21 +111,15 @@ class BaseWorker(object):
         """
         raise NotImplementedError()
 
-
-class BaseWorkerThread(BaseWorker, Thread):
-    def __init__(self, *args, **kwargs):
-        BaseWorker.__init__(self, *args, **kwargs)
-
-        count = getattr(self.__class__, '__instance_count', 0)
-        count += 1
-        setattr(self.__class__, '__instance_count', count)
-        Thread.__init__(self, name='%s-%s' % (self.__class__.__name__, count))
-
     def __repr__(self):
         return self.name
 
 
-class SubscriberWorkerThread(BaseWorkerThread):
+# Deprecated
+BaseWorkerThread = BaseWorker
+
+
+class SubscriberWorkerThread(BaseWorker):
     subscription_routing_key = None
 
     def __init__(self, queue_virtual_host='notifications', *args, **kwargs):
