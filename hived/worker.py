@@ -2,6 +2,7 @@ import random
 from threading import Thread
 import time
 
+from hived import conf
 from hived import trail
 from hived.queue import ExternalQueue, SerializationError
 
@@ -18,8 +19,8 @@ class BaseWorker(object):
     use_priority = False
     task_class = None
 
-    def __init__(self, logger, queue_name=None, queue_host='localhost', queue_username='guest', queue_password='guest',
-                 queue_virtual_host='/'):
+    def __init__(self, logger, queue_name=None, queue_host=conf.QUEUE_HOST, queue_username=conf.QUEUE_USER,
+                 queue_password=conf.QUEUE_PASSWORD, queue_virtual_host='/'):
         self.logger = logger
         self.queue_name = queue_name
         if isinstance(queue_name, str):

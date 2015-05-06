@@ -54,6 +54,7 @@ class Process(object):
     name = None
     worker_class = None
     default_workers = 1
+    default_queue_name = None
 
     def __new__(cls, *args):
         if cls._created:
@@ -66,6 +67,7 @@ class Process(object):
         parser = argparse.ArgumentParser(description='Start %s' % self.name)
         parser.add_argument('-w', '--workers', type=int, default=self.default_workers,
                             help='Number of worker threads to run')
+        parser.add_argument('-q', '--queue', default=self.default_queue_name or self.name, help='queue name')
         return parser
 
     def get_logging_handlers(self):
@@ -75,7 +77,7 @@ class Process(object):
         return configure_logging(self.name, self.get_logging_handlers())
 
     def create_worker(self, args, logger):
-        return self.worker_class(logger)
+        return self.worker_class(logger, queue_name=args.queue)
 
     def run(self):
         arg_parser = self.get_arg_parser()

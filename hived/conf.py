@@ -1,5 +1,9 @@
 import os
 
+QUEUE_HOST = os.getenv('QUEUE_HOST', 'localhost')
+QUEUE_USER = os.getenv('QUEUE_USER', 'guest')
+QUEUE_PASSWORD = os.getenv('QUEUE_PASSWORD', 'guest')
+
 TRACING_QUEUE_HOST = os.getenv('TRACING_QUEUE_HOST')
 TRACING_QUEUE_USER = os.getenv('TRACING_QUEUE_USER')
 TRACING_QUEUE_PASSWORD = os.getenv('TRACING_QUEUE_PASSWORD')

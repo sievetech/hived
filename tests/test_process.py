@@ -11,6 +11,7 @@ class SampleProcess(Process):
     name = 'process_name'
     worker_class = Mock()
     default_workers = 42
+    default_queue_name = 'default_queue'
 
 
 class ProcessTest(unittest.TestCase):
@@ -29,7 +30,8 @@ class ProcessTest(unittest.TestCase):
             self.assertEqual(parser, parser_cls.return_value)
             self.assertEqual(parser_cls.call_args_list, [call(description='Start process_name')])
             self.assertEqual(parser.add_argument.call_args_list,
-                             [call('-w', '--workers', default=42, type=int, help='Number of worker threads to run')])
+                             [call('-w', '--workers', default=42, type=int, help='Number of worker threads to run'),
+                              call('-q', '--queue', default='default_queue', help='queue name')])
 
     def test_creates_logging_handlers(self):
         with patch('logging.StreamHandler') as stream_handler,\
@@ -84,9 +86,10 @@ class ProcessTest(unittest.TestCase):
 
     def test_creates_worker(self):
         logger = Mock()
-        worker = self.process.create_worker(Mock(), logger)
+        args = Mock()
+        worker = self.process.create_worker(args, logger)
         self.assertEqual(worker, SampleProcess.worker_class.return_value)
-        self.assertEqual(SampleProcess.worker_class.call_args_list, [call(logger)])
+        self.assertEqual(SampleProcess.worker_class.call_args_list, [call(logger, queue_name=args.queue)])
 
     def test_run(self):
         arg_parser, args = Mock(), Mock()
