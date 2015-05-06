@@ -48,7 +48,7 @@ class TrailTest(unittest.TestCase):
                                     'type': type_,
                                     'trail_id': 'trail_id',
                                     'live': 'is_live',
-                                    'name': 'process_name',
+                                    'process': 'process_name',
                                     'data': {'event': 'data'}},
                                    routing_key='trace')])
 
