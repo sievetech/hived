@@ -51,8 +51,7 @@ class ExternalQueue(object):
             'host': host,
             'userid': username,
             'password': password,
-            'virtual_host': virtual_host,
-            'heartbeat': 60,
+            'virtual_host': virtual_host
         }
 
     def __enter__(self):
