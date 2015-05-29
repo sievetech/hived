@@ -14,7 +14,7 @@ setup(
     url='https://github.com/sievetech/hived',
     packages=['hived'],
     entry_points={'console_scripts': ['run_module = hived.run_module:main']},
-    install_requires=['amqp==1.4.5', 'simplejson>=2.6.2', 'raven==5.3.1'],
+    install_requires=['amqp>=1.4.5', 'simplejson>=2.6.2', 'raven>=5.3.1'],
     test_suite='tests',
     classifiers=[
         'Intended Audience :: Developers',
