@@ -45,6 +45,8 @@ class BaseWorker(Thread):
 
     def run(self):
         self.logger.info('%s started' % self)
+        trail.set_queue(self.queue)  # Needs to be run inside the thread
+
         wait_time = 0
         while not self.stopped:
             wait_time += random.randint(1, 10)

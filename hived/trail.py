@@ -32,6 +32,10 @@ def set_trail(id_=None, live=False):
     _local.live = live
 
 
+def set_queue(queue):
+    _local.queue = queue
+
+
 class EventType:
     process_entered = 'entered'
     exception = 'exception'
@@ -39,20 +43,15 @@ class EventType:
 
 def trace(type_=None, **event_data):
     current_id = get_id()
-    if current_id and conf.TRACING_ENABLED:
+    if current_id and not conf.TRACING_DISABLED and hasattr(_local, 'queue'):
         from hived import process  # ugh
-        if not hasattr(_local, 'queue'):
-            from hived.queue import ExternalQueue
-            _local.queue = ExternalQueue(conf.TRACING_QUEUE_HOST, conf.TRACING_QUEUE_USER, conf.TRACING_QUEUE_PASSWORD,
-                                         exchange='trail')
-
         message = {'process': process.get_name(),
                    'type': type_,
                    'trail_id': current_id,
                    'live': is_live(),
                    'time': datetime.now().isoformat(),
                    'data': event_data}
-        _local.queue.put(message, routing_key='trace')
+        _local.queue.put(message, exchange='trail', routing_key='trace')
 
 
 def trace_exception(e):

@@ -31,6 +31,12 @@ class TrailTest(unittest.TestCase):
             self.assertEqual(trail._local.id, 42)
             self.assertFalse(trail._local.live)
 
+    def test_set_queue(self):
+        trail._local.queue = None
+        queue = Mock()
+        trail.set_queue(queue)
+        self.assertEqual(trail._local.queue, queue)
+
     def test_trace_sends_message_to_queue(self):
         now = datetime(2015, 5, 4, 21, 10, 42)
         datetime_mock = Mock()
@@ -40,7 +46,7 @@ class TrailTest(unittest.TestCase):
                 patch(MODULE_NAME + '._local.id', 'trail_id'),\
                 patch(MODULE_NAME + '._local.live', 'is_live'),\
                 patch('hived.process.get_name', return_value='process_name'),\
-                patch('hived.conf.TRACING_ENABLED', True),\
+                patch('hived.conf.TRACING_DISABLED', False),\
                 patch(MODULE_NAME + '.datetime', datetime_mock):
             trail.trace(type_=type_, event='data')
             self.assertEqual(queue_mock.put.call_args_list,
@@ -52,25 +58,10 @@ class TrailTest(unittest.TestCase):
                                     'data': {'event': 'data'}},
                                    routing_key='trace')])
 
-    def test_trace_creates_external_queue_if_it_doesnt_exist_in_the_thread_local(self):
-        if hasattr(trail._local, 'queue'):
-            del trail._local.queue
+    def test_trace_doesnt_do_anything_if_tracing_is_disabled(self):
         with patch(MODULE_NAME + '._local.id', 'trail_id'),\
-                patch('hived.queue.ExternalQueue') as queue_mock,\
-                patch('hived.conf.TRACING_QUEUE_HOST', 'host'),\
-                patch('hived.conf.TRACING_QUEUE_USER', 'user'),\
-                patch('hived.conf.TRACING_QUEUE_PASSWORD', 'password'),\
-                patch('hived.conf.TRACING_ENABLED', True):
-            trail.trace()
-            self.assertEqual(queue_mock.call_args_list, [call('host', 'user', 'password', exchange='trail')])
-            self.assertEqual(queue_mock.return_value.put.call_count, 1)
-
-    def test_trace_doesnt_do_anything_if_tracing_is_not_enabled(self):
-        if hasattr(trail._local, 'queue'):
-            del trail._local.queue
-        with patch(MODULE_NAME + '._local.id', 'trail_id'),\
-                patch('hived.conf.TRACING_ENABLED', False),\
-                patch('hived.queue.ExternalQueue') as queue_mock:
+                patch(MODULE_NAME + '._local.queue', create=True) as queue_mock,\
+                patch('hived.conf.TRACING_DISABLED', True):
             trail.trace()
             self.assertEqual(queue_mock.call_count, 0)
 
