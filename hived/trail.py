@@ -42,13 +42,10 @@ class EventType:
 
 
 def trace(type_=None, **event_data):
-    current_id = get_id()
-    if current_id and not conf.TRACING_DISABLED and hasattr(_local, 'queue'):
+    if get_id() and not conf.TRACING_DISABLED and hasattr(_local, 'queue'):
         from hived import process  # ugh
         message = {'process': process.get_name(),
                    'type': type_,
-                   'trail_id': current_id,
-                   'live': is_live(),
                    'time': datetime.now().isoformat(),
                    'data': event_data}
         _local.queue.put(message, exchange='trail', routing_key='trace')

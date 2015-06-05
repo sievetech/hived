@@ -1,8 +1,7 @@
 import json
 import unittest
 
-from amqp import AMQPError, ConnectionError
-import amqp
+from amqp import Message, AMQPError, ConnectionError
 import mock
 from hived import trail
 
@@ -60,10 +59,7 @@ class ExternalQueueTest(unittest.TestCase):
         self.assertRaises(ConnectionError, self.external_queue._try, 'method')
 
     def test_put_uses_default_exchange_if_not_supplied(self):
-        amqp_msg = amqp.basic_message.Message("body",
-                                              delivery_mode=2,
-                                              content_type='application/json')
-
+        amqp_msg = Message('body', delivery_mode=2, content_type='application/json')
         self.external_queue.put(body='body')
         self.assertEqual(self.channel_mock.basic_publish.call_args_list,
                          [mock.call(msg=amqp_msg,
@@ -72,9 +68,7 @@ class ExternalQueueTest(unittest.TestCase):
 
     def test_put_adds_trail_key_to_messages(self):
         message_dict = {'key': 'value', TRAIL_FIELD: self.trail}
-        amqp_msg = amqp.basic_message.Message(json.dumps(message_dict),
-                                              delivery_mode=2,
-                                              content_type='application/json')
+        amqp_msg = Message(json.dumps(message_dict), delivery_mode=2, content_type='application/json')
 
         self.external_queue.put(message_dict={'key': 'value'})
         self.assertEqual(self.channel_mock.basic_publish.call_args_list[0][1]['msg'],
@@ -82,9 +76,7 @@ class ExternalQueueTest(unittest.TestCase):
 
     def test_put_serializes_message_if_necessary(self):
         message_dict = {'key': 'value', TRAIL_FIELD: self.trail}
-        amqp_msg = amqp.basic_message.Message(json.dumps(message_dict),
-                                              delivery_mode=2,
-                                              content_type='application/json')
+        amqp_msg = Message(json.dumps(message_dict), delivery_mode=2, content_type='application/json')
 
         self.external_queue.put(message_dict=message_dict,
                                 exchange='exchange',

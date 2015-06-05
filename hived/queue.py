@@ -3,7 +3,7 @@ import uuid
 import warnings
 
 import amqp
-from amqp import AMQPError, ConnectionError as AMQPConnectionError
+from amqp import Message, AMQPError, ConnectionError as AMQPConnectionError
 import simplejson as json
 
 from hived import trail
@@ -57,7 +57,7 @@ class ExternalQueue(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, *_):
         self.close()
         return False
 
@@ -113,14 +113,12 @@ class ExternalQueue(object):
 
         if body is None:
             try:
-                message_dict[TRAIL_FIELD] = trail.get_trail()
+                message_dict.setdefault(TRAIL_FIELD, trail.get_trail())
                 body = json.dumps(message_dict)
             except Exception as e:
                 raise SerializationError(e)
 
-        message = amqp.basic_message.Message(body,
-                                             delivery_mode=2,
-                                             content_type='application/json')
+        message = Message(body, delivery_mode=2, content_type='application/json')
         return self._try('basic_publish',
                          msg=message,
                          exchange=exchange,

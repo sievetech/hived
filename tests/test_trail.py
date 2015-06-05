@@ -52,11 +52,10 @@ class TrailTest(unittest.TestCase):
             self.assertEqual(queue_mock.put.call_args_list,
                              [call({'time': '2015-05-04T21:10:42',
                                     'type': type_,
-                                    'trail_id': 'trail_id',
-                                    'live': 'is_live',
                                     'process': 'process_name',
                                     'data': {'event': 'data'}},
-                                   routing_key='trace')])
+                                   routing_key='trace',
+                                   exchange='trail')])
 
     def test_trace_doesnt_do_anything_if_tracing_is_disabled(self):
         with patch(MODULE_NAME + '._local.id', 'trail_id'),\
