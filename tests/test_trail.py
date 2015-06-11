@@ -19,9 +19,10 @@ class TrailTest(unittest.TestCase):
     def test_set_trail(self):
         trail._local.id = trail._local.live = None
         live = Mock()
-        trail.set_trail(id_=42, live=live)
+        trail.set_trail(id_=42, live=live, steps=[1, 2])
         self.assertEqual(trail._local.id, 42)
         self.assertEqual(trail._local.live, live)
+        self.assertEqual(trail._local.steps, [1, 2])
 
     def test_set_trail_generates_a_new_id_if_given_a_null_one(self):
         trail._local.id = None
@@ -76,7 +77,3 @@ class TrailTest(unittest.TestCase):
             self.assertEqual(get_stack_mock.call_args_list, [call(iter_frames_mock.return_value)])
             self.assertEqual(trace_mock.call_args_list,
                              [call(type_=trail.EventType.exception, exc=str(exc), stack=get_stack_mock.return_value)])
-
-
-if __name__ == '__main__':
-    unittest.main()

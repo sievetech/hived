@@ -1,4 +1,6 @@
+import base64
 from datetime import datetime
+import os
 import sys
 from threading import local
 import uuid
@@ -14,6 +16,10 @@ def generate_id():
     return str(uuid.uuid4())
 
 
+def generate_step_id():
+    return base64.urlsafe_b64encode(os.urandom(6))
+
+
 def get_id():
     return getattr(_local, 'id', None)
 
@@ -22,14 +28,20 @@ def is_live():
     return getattr(_local, 'live', False)
 
 
+def get_steps():
+    return getattr(_local, 'steps', [])
+
+
 def get_trail():
     return {'id_': get_id(),
-            'live': is_live()}
+            'live': is_live(),
+            'steps': get_steps()}
 
 
-def set_trail(id_=None, live=False):
+def set_trail(id_=None, live=False, steps=None):
     _local.id = id_ or generate_id()
     _local.live = live
+    _local.steps = steps or []
 
 
 def set_queue(queue):

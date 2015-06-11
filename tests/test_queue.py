@@ -10,7 +10,7 @@ from hived.queue import ExternalQueue, MAX_TRIES, SerializationError, META_FIELD
 
 class ExternalQueueTest(unittest.TestCase):
     def setUp(self):
-        self.trail = {'id_': 'trail_id', 'live': 'live'}
+        self.trail = {'id_': 'trail_id', 'live': 'live', 'steps': []}
         self.trail_patcher = mock.patch('hived.trail.get_trail', return_value=self.trail)
         self.trail_patcher.start()
 
@@ -66,21 +66,25 @@ class ExternalQueueTest(unittest.TestCase):
                                     exchange='default_exchange',
                                     routing_key='')])
 
-    def test_put_adds_trail_key_to_messages(self):
-        message_dict = {'key': 'value', TRAIL_FIELD: self.trail}
-        amqp_msg = Message(json.dumps(message_dict), delivery_mode=2, content_type='application/json')
+    def test_put_adds_trail_key_to_messages_sent_and_step_to_trail(self):
+        with mock.patch('hived.trail.generate_step_id', return_value='step_id'):
+            self.external_queue.put(message_dict={'key': 'value'})
 
-        self.external_queue.put(message_dict={'key': 'value'})
+        self.trail['steps'] = ['step_id']
+        amqp_msg = Message(json.dumps({'key': 'value', TRAIL_FIELD: self.trail}), delivery_mode=2,
+                           content_type='application/json')
         self.assertEqual(self.channel_mock.basic_publish.call_args_list[0][1]['msg'],
                          amqp_msg)
 
     def test_put_serializes_message_if_necessary(self):
-        message_dict = {'key': 'value', TRAIL_FIELD: self.trail}
-        amqp_msg = Message(json.dumps(message_dict), delivery_mode=2, content_type='application/json')
+        with mock.patch('hived.trail.generate_step_id', return_value='step_id'):
+            self.external_queue.put(message_dict={'key': 'value', TRAIL_FIELD: self.trail},
+                                    exchange='exchange',
+                                    routing_key='routing_key')
 
-        self.external_queue.put(message_dict=message_dict,
-                                exchange='exchange',
-                                routing_key='routing_key')
+        self.trail['steps'] = ['step_id']
+        amqp_msg = Message(json.dumps({'key': 'value', TRAIL_FIELD: self.trail}),
+                           delivery_mode=2, content_type='application/json')
         self.assertEqual(self.channel_mock.basic_publish.call_args_list,
                          [mock.call(msg=amqp_msg,
                                     exchange='exchange',
@@ -106,7 +110,7 @@ class ExternalQueueTest(unittest.TestCase):
     def test_get_calls_set_trail(self):
         with mock.patch('hived.trail.set_trail') as set_trail_mock:
             message, ack = self.external_queue.get()
-            self.assertEqual(set_trail_mock.call_args_list, [mock.call(id_='trail_id', live='live')])
+            self.assertEqual(set_trail_mock.call_args_list, [mock.call(id_='trail_id', live='live', steps=[])])
             self.assertEqual(ack, 'delivery_tag')
 
     def test_get_traces_process_entered_event(self):
