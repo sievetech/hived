@@ -113,7 +113,7 @@ class ExternalQueue(object):
 
         if body is None:
             try:
-                message_dict.setdefault(TRAIL_FIELD, trail.get_trail())
+                message_dict[TRAIL_FIELD] = trail.get_trail()
                 message_dict[TRAIL_FIELD]['steps'].append(trail.generate_step_id())
                 body = json.dumps(message_dict)
             except Exception as e:
