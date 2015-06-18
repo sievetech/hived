@@ -12,17 +12,30 @@ class TrailTest(unittest.TestCase):
         with patch('uuid.uuid4', return_value='uuid'):
             self.assertEqual(trail.generate_id(), 'uuid')
 
-    def test_get_returns_existing_id(self):
+    def test_get_id_returns_existing_id(self):
         trail._local.id = 42
         self.assertEqual(trail.get_id(), 42)
+
+    def test_get_trail(self):
+        trail._local.id = Mock()
+        trail._local.live = Mock()
+        trail._local.steps = Mock()
+        trail._local.extra = {'extra_1': 1, 'extra_2': 2}
+        self.assertEqual(trail.get_trail(),
+                         {'id_': trail._local.id,
+                          'live': trail._local.live,
+                          'steps': trail._local.steps,
+                          'extra_1': 1,
+                          'extra_2': 2})
 
     def test_set_trail(self):
         trail._local.id = trail._local.live = None
         live = Mock()
-        trail.set_trail(id_=42, live=live, steps=[1, 2])
+        trail.set_trail(id_=42, live=live, steps=[1, 2], extra_arg_1=1, extra_arg_2=2)
         self.assertEqual(trail._local.id, 42)
         self.assertEqual(trail._local.live, live)
         self.assertEqual(trail._local.steps, [1, 2])
+        self.assertEqual(trail._local.extra, {'extra_arg_1': 1, 'extra_arg_2': 2})
 
     def test_set_trail_generates_a_new_id_if_given_a_null_one(self):
         trail._local.id = None

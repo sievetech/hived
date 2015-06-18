@@ -33,15 +33,18 @@ def get_steps():
 
 
 def get_trail():
-    return {'id_': get_id(),
-            'live': is_live(),
-            'steps': get_steps()}
+    trail = {'id_': get_id(),
+             'live': is_live(),
+             'steps': get_steps()}
+    trail.update(getattr(_local, 'extra', {}))
+    return trail
 
 
-def set_trail(id_=None, live=False, steps=None):
+def set_trail(id_=None, live=False, steps=None, **extra):
     _local.id = id_ or generate_id()
     _local.live = live
     _local.steps = steps or []
+    _local.extra = extra
 
 
 def set_queue(queue):
