@@ -29,11 +29,12 @@ def is_live():
 
 
 def get_steps():
-    return getattr(_local, 'steps', [])
+    # Should return a new list, because new steps shouldn't be added to the task currently being processed
+    return list(getattr(_local, 'steps', []))
 
 
 def get_trail():
-    trail = {'id_': get_id(),
+    trail = {'id_': get_id() or generate_id(),
              'live': is_live(),
              'steps': get_steps()}
     trail.update(getattr(_local, 'extra', {}))
@@ -41,7 +42,7 @@ def get_trail():
 
 
 def set_trail(id_=None, live=False, steps=None, **extra):
-    _local.id = id_ or generate_id()
+    _local.id = id_
     _local.live = live
     _local.steps = steps or []
     _local.extra = extra

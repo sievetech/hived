@@ -19,14 +19,21 @@ class TrailTest(unittest.TestCase):
     def test_get_trail(self):
         trail._local.id = Mock()
         trail._local.live = Mock()
-        trail._local.steps = Mock()
+        trail._local.steps = [Mock()]
         trail._local.extra = {'extra_1': 1, 'extra_2': 2}
-        self.assertEqual(trail.get_trail(),
+        returned_trail = trail.get_trail()
+        self.assertEqual(returned_trail,
                          {'id_': trail._local.id,
                           'live': trail._local.live,
                           'steps': trail._local.steps,
                           'extra_1': 1,
                           'extra_2': 2})
+        self.assertIsNot(returned_trail['steps'], trail._local.steps)
+
+    def test_get_trail_generates_a_new_id_if_the_current_is_none(self):
+        trail._local.id = None
+        with patch(MODULE_NAME + '.generate_id') as generate_mock:
+            self.assertEqual(trail.get_trail()['id_'], generate_mock.return_value)
 
     def test_set_trail(self):
         trail._local.id = trail._local.live = None
@@ -36,14 +43,6 @@ class TrailTest(unittest.TestCase):
         self.assertEqual(trail._local.live, live)
         self.assertEqual(trail._local.steps, [1, 2])
         self.assertEqual(trail._local.extra, {'extra_arg_1': 1, 'extra_arg_2': 2})
-
-    def test_set_trail_generates_a_new_id_if_given_a_null_one(self):
-        trail._local.id = None
-        trail._local.live = None
-        with patch(MODULE_NAME + '.generate_id', return_value=42):
-            trail.set_trail()
-            self.assertEqual(trail._local.id, 42)
-            self.assertFalse(trail._local.live)
 
     def test_set_queue(self):
         trail._local.queue = None
