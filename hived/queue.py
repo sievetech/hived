@@ -12,6 +12,7 @@ from hived import trail
 MAX_TRIES = 3
 META_FIELD = '_meta'
 TRAIL_FIELD = '_trail'
+STEP_FIELD = '_step'
 
 
 class ConnectionError(AMQPConnectionError):
@@ -115,6 +116,7 @@ class ExternalQueue(object):
             try:
                 message_dict[TRAIL_FIELD] = trail.get_trail()
                 message_dict[TRAIL_FIELD]['steps'].append(trail.generate_step_id())
+                message_dict[STEP_FIELD] = {'exchange': exchange, 'routing_key': routing_key}
                 body = json.dumps(message_dict)
             except Exception as e:
                 raise SerializationError(e)

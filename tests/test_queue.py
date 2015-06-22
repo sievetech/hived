@@ -5,7 +5,7 @@ from amqp import Message, AMQPError, ConnectionError
 import mock
 from hived import trail
 
-from hived.queue import ExternalQueue, MAX_TRIES, SerializationError, META_FIELD, TRAIL_FIELD
+from hived.queue import ExternalQueue, MAX_TRIES, SerializationError, META_FIELD, TRAIL_FIELD, STEP_FIELD
 
 
 class ExternalQueueTest(unittest.TestCase):
@@ -66,13 +66,15 @@ class ExternalQueueTest(unittest.TestCase):
                                     exchange='default_exchange',
                                     routing_key='')])
 
-    def test_put_adds_trail_key_to_messages_sent_and_step_to_trail(self):
+    def test_put_adds_trail_key_and_step_info_to_messages_sent(self):
         with mock.patch('hived.trail.generate_step_id', return_value='step_id'):
-            self.external_queue.put(message_dict={'key': 'value'})
+            self.external_queue.put(message_dict={'key': 'value'}, exchange='exchange', routing_key='routing_key')
 
         self.trail['steps'] = ['step_id']
-        amqp_msg = Message(json.dumps({'key': 'value', TRAIL_FIELD: self.trail}), delivery_mode=2,
-                           content_type='application/json')
+        amqp_msg = Message(json.dumps({'key': 'value',
+                                       TRAIL_FIELD: self.trail,
+                                       STEP_FIELD: {'exchange': 'exchange', 'routing_key': 'routing_key'}}),
+                           delivery_mode=2, content_type='application/json')
         self.assertEqual(self.channel_mock.basic_publish.call_args_list[0][1]['msg'],
                          amqp_msg)
 
@@ -83,7 +85,8 @@ class ExternalQueueTest(unittest.TestCase):
                                     routing_key='routing_key')
 
         self.trail['steps'] = ['step_id']
-        amqp_msg = Message(json.dumps({'key': 'value', TRAIL_FIELD: self.trail}),
+        amqp_msg = Message(json.dumps({'key': 'value', TRAIL_FIELD: self.trail,
+                                       STEP_FIELD: {'exchange': 'exchange', 'routing_key': 'routing_key'}}),
                            delivery_mode=2, content_type='application/json')
         self.assertEqual(self.channel_mock.basic_publish.call_args_list,
                          [mock.call(msg=amqp_msg,
