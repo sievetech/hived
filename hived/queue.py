@@ -6,6 +6,7 @@ import amqp
 from amqp import Message, AMQPError, ConnectionError as AMQPConnectionError
 import simplejson as json
 
+from hived import conf
 from hived import trail
 
 
@@ -39,7 +40,8 @@ class ExternalQueue(object):
         for msg in msgs:
             queue.put(msg)
     """
-    def __init__(self, host, username, password, virtual_host='/', exchange=None, queue_name=None, priority=False):
+    def __init__(self, host=conf.QUEUE_HOST, username=conf.QUEUE_USER, password=conf.QUEUE_PASSWORD, virtual_host='/',
+                 exchange=None, queue_name=None, priority=False):
         self.default_exchange = exchange
         self.default_queue_name = queue_name
         self.priority_queue_name = queue_name + '_priority' if priority else None
