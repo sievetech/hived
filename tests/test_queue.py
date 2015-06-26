@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import unittest
 
@@ -5,7 +6,8 @@ from amqp import Message, AMQPError, ConnectionError
 import mock
 from hived import trail
 
-from hived.queue import ExternalQueue, MAX_TRIES, SerializationError, META_FIELD, TRAIL_FIELD, STEP_FIELD
+from hived.queue import ExternalQueue, MAX_TRIES, SerializationError, META_FIELD, TRAIL_FIELD, STEP_FIELD, \
+    add_trail_keys
 
 
 class ExternalQueueTest(unittest.TestCase):
@@ -66,28 +68,38 @@ class ExternalQueueTest(unittest.TestCase):
                                     exchange='default_exchange',
                                     routing_key='')])
 
+    def test_add_trail_keys(self):
+        datetime_mock = mock.Mock()
+        datetime_mock.now.return_value = datetime(2015, 6, 26, 11, 52)
+        with mock.patch('hived.trail.generate_step_id', return_value='step_id'),\
+                mock.patch('hived.process.get_name', return_value='name'),\
+                mock.patch('hived.queue.datetime', datetime_mock):
+            message = add_trail_keys({}, 'exchange', 'routing_key')
+
+        self.assertEqual(message, {STEP_FIELD: {'exchange': 'exchange',
+                                                'process': 'name',
+                                                'routing_key': 'routing_key',
+                                                'time': '2015-06-26T11:52:00'},
+                                   TRAIL_FIELD: {'id_': 'trail_id', 'live': 'live', 'steps': ['step_id']}})
+
     def test_put_adds_trail_key_and_step_info_to_messages_sent(self):
-        with mock.patch('hived.trail.generate_step_id', return_value='step_id'):
+        datetime_mock = mock.Mock()
+        datetime_mock.now.return_value = datetime(2015, 6, 26, 11, 52)
+        with mock.patch('hived.queue.add_trail_keys', return_value={'key': 'value', 'trail': 'field'}):
             self.external_queue.put(message_dict={'key': 'value'}, exchange='exchange', routing_key='routing_key')
 
         self.trail['steps'] = ['step_id']
-        amqp_msg = Message(json.dumps({'key': 'value',
-                                       TRAIL_FIELD: self.trail,
-                                       STEP_FIELD: {'exchange': 'exchange', 'routing_key': 'routing_key'}}),
+        amqp_msg = Message(json.dumps({'key': 'value', 'trail': 'field'}),
                            delivery_mode=2, content_type='application/json')
         self.assertEqual(self.channel_mock.basic_publish.call_args_list[0][1]['msg'],
                          amqp_msg)
 
     def test_put_serializes_message_if_necessary(self):
-        with mock.patch('hived.trail.generate_step_id', return_value='step_id'):
-            self.external_queue.put(message_dict={'key': 'value', TRAIL_FIELD: self.trail},
-                                    exchange='exchange',
-                                    routing_key='routing_key')
+        message = {'key': 'value'}
+        with mock.patch('hived.queue.add_trail_keys', return_value=message):
+            self.external_queue.put(message_dict=message, exchange='exchange', routing_key='routing_key')
 
-        self.trail['steps'] = ['step_id']
-        amqp_msg = Message(json.dumps({'key': 'value', TRAIL_FIELD: self.trail,
-                                       STEP_FIELD: {'exchange': 'exchange', 'routing_key': 'routing_key'}}),
-                           delivery_mode=2, content_type='application/json')
+        amqp_msg = Message(json.dumps(message), delivery_mode=2, content_type='application/json')
         self.assertEqual(self.channel_mock.basic_publish.call_args_list,
                          [mock.call(msg=amqp_msg,
                                     exchange='exchange',

@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 import uuid
 import warnings
@@ -7,6 +8,7 @@ from amqp import Message, AMQPError, ConnectionError as AMQPConnectionError
 import simplejson as json
 
 from hived import conf
+from hived import process
 from hived import trail
 
 
@@ -28,6 +30,16 @@ class SerializationError(Exception):
 
     def __repr__(self):
         return '%s: %s' % (self.exc, repr(self.body))
+
+
+def add_trail_keys(message, exchange, routing_key):
+    message[TRAIL_FIELD] = trail.get_trail()
+    message[TRAIL_FIELD]['steps'].append(trail.generate_step_id())
+    message[STEP_FIELD] = {'exchange': exchange,
+                           'routing_key': routing_key,
+                           'process': process.get_name(),
+                           'time': datetime.now().isoformat()}
+    return message  # Makes it easier to test
 
 
 class ExternalQueue(object):
@@ -116,9 +128,7 @@ class ExternalQueue(object):
 
         if body is None:
             try:
-                message_dict[TRAIL_FIELD] = trail.get_trail()
-                message_dict[TRAIL_FIELD]['steps'].append(trail.generate_step_id())
-                message_dict[STEP_FIELD] = {'exchange': exchange, 'routing_key': routing_key}
+                message_dict = add_trail_keys(message_dict, exchange, routing_key)
                 body = json.dumps(message_dict)
             except Exception as e:
                 raise SerializationError(e)
