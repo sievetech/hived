@@ -1,6 +1,7 @@
 import random
 from threading import Thread
 import time
+import traceback
 
 from hived import conf
 from hived import trail
@@ -56,8 +57,7 @@ class BaseWorker(Thread):
             try:
                 self.protected_run()
             except Exception as e:
-                m = '%s died, restarting in %s seconds. Exception: %s'
-                self.logger.exception(m, self, wait_time, e)
+                self.logger.exception({'exception': traceback.format_exc()})
                 trail.trace_exception(e)
                 time.sleep(wait_time)
 
