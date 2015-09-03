@@ -19,12 +19,14 @@ class TrailTest(unittest.TestCase):
     def test_get_trail(self):
         trail._local.id = Mock()
         trail._local.live = Mock()
+        trail._local.priority = Mock()
         trail._local.steps = [Mock()]
         trail._local.extra = {'extra_1': 1, 'extra_2': 2}
         returned_trail = trail.get_trail()
         self.assertEqual(returned_trail,
                          {'id_': trail._local.id,
                           'live': trail._local.live,
+                          'priority': trail._local.priority,
                           'steps': trail._local.steps,
                           'extra_1': 1,
                           'extra_2': 2})
@@ -38,9 +40,11 @@ class TrailTest(unittest.TestCase):
     def test_set_trail(self):
         trail._local.id = trail._local.live = None
         live = Mock()
-        trail.set_trail(id_=42, live=live, steps=[1, 2], extra_arg_1=1, extra_arg_2=2)
+        priority = Mock()
+        trail.set_trail(id_=42, live=live, priority=priority, steps=[1, 2], extra_arg_1=1, extra_arg_2=2)
         self.assertEqual(trail._local.id, 42)
         self.assertEqual(trail._local.live, live)
+        self.assertEqual(trail._local.priority, priority)
         self.assertEqual(trail._local.steps, [1, 2])
         self.assertEqual(trail._local.extra, {'extra_arg_1': 1, 'extra_arg_2': 2})
 

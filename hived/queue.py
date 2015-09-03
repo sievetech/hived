@@ -113,7 +113,7 @@ class ExternalQueue(object):
         self.subscription = routing_key
         self._connect()
 
-    def put(self, message_dict=None, routing_key='', exchange=None, body=None):
+    def put(self, message_dict=None, routing_key='', exchange=None, body=None, priority=0):
         """
         Publishes a message to the queue.
         message_dict: the json-serializable object that will be published
@@ -133,7 +133,10 @@ class ExternalQueue(object):
             except Exception as e:
                 raise SerializationError(e)
 
-        message = Message(body, delivery_mode=2, content_type='application/json')
+        message = Message(body,
+                          delivery_mode=2,
+                          content_type='application/json',
+                          priority=priority or trail.get_priority())
         return self._try('basic_publish',
                          msg=message,
                          exchange=exchange,
