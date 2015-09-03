@@ -17,7 +17,6 @@ class BaseWorker(Thread):
     It does not begin running until the run() method is called.
     """
     publisher_exchange = None
-    use_priority = False
     task_class = None
 
     def __init__(self, logger, queue_name=None, queue_host=conf.QUEUE_HOST, queue_username=conf.QUEUE_USER,
@@ -39,8 +38,7 @@ class BaseWorker(Thread):
             queue_name=queue_name,
             virtual_host=queue_virtual_host,
             username=queue_username,
-            password=queue_password,
-            priority=self.use_priority,
+            password=queue_password
         )
         self.stopped = False
 

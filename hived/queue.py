@@ -1,7 +1,6 @@
 from datetime import datetime
 import time
 import uuid
-import warnings
 
 import amqp
 from amqp import Message, AMQPError, ConnectionError as AMQPConnectionError
@@ -53,11 +52,9 @@ class ExternalQueue(object):
             queue.put(msg)
     """
     def __init__(self, host=conf.QUEUE_HOST, username=conf.QUEUE_USER, password=conf.QUEUE_PASSWORD, virtual_host='/',
-                 exchange=None, queue_name=None, priority=False):
+                 exchange=None, queue_name=None):
         self.default_exchange = exchange
         self.default_queue_name = queue_name
-        self.priority_queue_name = queue_name + '_priority' if priority else None
-        self.priority_count = 0
         self.channel = None
         self.subscription = None
         self.connection = None
@@ -171,43 +168,14 @@ class ExternalQueue(object):
         message on the queue, returns (None, None).
         """
         while True:
-            for queue_name in self._get_queue_name_list(queue_name):
-                try:
-                    message = self._get_message(queue_name)
-                except AMQPConnectionError:
-                    if queue_name == self.priority_queue_name:
-                        # TODO: make it log
-                        warnings.warn(
-                            'priority queue does not exist: '
-                            '{}'.format(queue_name)
-                        )
-                        message = None
-                    else:
-                        raise
-
-                if message:
-                    return message
+            message = self._get_message(queue_name or self.default_queue_name)
+            if message:
+                return message
 
             if block:
                 time.sleep(.5)
             else:
                 return None, None
-
-    def _get_queue_name_list(self, queue_name=None):
-        if queue_name:
-            name_list = [queue_name]
-
-        elif self.priority_queue_name and self.priority_queue_name != self.default_queue_name:
-            name_list = [self.priority_queue_name, self.default_queue_name]
-            if self.priority_count in (2, 5, 8):
-                # In 3 of 10 cases it picks the default queue first; otherwise picks the priority queue
-                name_list = reversed(name_list)
-            self.priority_count = (self.priority_count + 1) % 10
-
-        else:
-            name_list = [self.default_queue_name]
-
-        return name_list
 
     def ack(self, delivery_tag):
         """
