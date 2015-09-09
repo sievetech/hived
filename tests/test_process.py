@@ -89,7 +89,8 @@ class ProcessTest(unittest.TestCase):
         args = Mock()
         worker = self.process.create_worker(args, logger)
         self.assertEqual(worker, SampleProcess.worker_class.return_value)
-        self.assertEqual(SampleProcess.worker_class.call_args_list, [call(logger, queue_name=args.queue)])
+        self.assertEqual(SampleProcess.worker_class.call_args_list,
+                         [call(logger, queue_name=args.queue, process=self.process)])
 
     def test_run(self):
         arg_parser, args = Mock(), Mock()

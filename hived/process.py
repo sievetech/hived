@@ -77,7 +77,7 @@ class Process(object):
         return configure_logging(self.name, self.get_logging_handlers())
 
     def create_worker(self, args, logger):
-        return self.worker_class(logger, queue_name=args.queue)
+        return self.worker_class(logger, queue_name=args.queue, process=self)
 
     def run(self):
         arg_parser = self.get_arg_parser()

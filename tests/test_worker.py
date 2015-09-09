@@ -7,6 +7,11 @@ from hived.worker import BaseWorker
 
 
 class BaseWorkerTest(unittest.TestCase):
+    def test_init_adds_process_to_instance(self):
+        process = Mock()
+        worker = BaseWorker(Mock(), process=process)
+        self.assertEqual(worker.process, process)
+
     def test_send_invalid_messages_to_garbage(self):
         queue_name = 'myqueue'
         worker = BaseWorker(Mock(), queue_name=queue_name)

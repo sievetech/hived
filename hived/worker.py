@@ -21,7 +21,7 @@ class BaseWorker(Thread):
     task_class = None
 
     def __init__(self, logger, queue_name=None, queue_host=conf.QUEUE_HOST, queue_username=conf.QUEUE_USER,
-                 queue_password=conf.QUEUE_PASSWORD, queue_virtual_host='/'):
+                 queue_password=conf.QUEUE_PASSWORD, queue_virtual_host='/', process=None):
         count = getattr(self.__class__, '__instance_count', 0)
         count += 1
         setattr(self.__class__, '__instance_count', count)
@@ -42,6 +42,7 @@ class BaseWorker(Thread):
             password=queue_password,
             priority=self.use_priority,
         )
+        self.process = process
         self.stopped = False
 
     def run(self):
