@@ -40,13 +40,33 @@ class TrailTest(unittest.TestCase):
     def test_set_trail(self):
         trail._local.id = trail._local.live = None
         live = Mock()
+
+        trail._local.priority = None
         priority = Mock()
-        trail.set_trail(id_=42, live=live, priority=priority, steps=[1, 2], extra_arg_1=1, extra_arg_2=2)
+
+        def set_priority(_):
+            trail._local.priority = priority
+
+        with patch(MODULE_NAME + '.set_priority', set_priority):
+            trail.set_trail(id_=42, live=live, priority=Mock(), steps=[1, 2], extra_arg_1=1, extra_arg_2=2)
+
         self.assertEqual(trail._local.id, 42)
         self.assertEqual(trail._local.live, live)
         self.assertEqual(trail._local.priority, priority)
         self.assertEqual(trail._local.steps, [1, 2])
         self.assertEqual(trail._local.extra, {'extra_arg_1': 1, 'extra_arg_2': 2})
+
+    def test_set_priority_converts_non_int_values(self):
+        trail._local.priority = None
+
+        trail.set_priority(False)
+        self.assertEqual(trail.get_priority(), 0)
+
+        trail.set_priority(None)
+        self.assertEqual(trail.get_priority(), 0)
+
+        trail.set_priority(True)
+        self.assertEqual(trail.get_priority(), 1)
 
     def test_set_queue(self):
         trail._local.queue = None

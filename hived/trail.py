@@ -33,6 +33,8 @@ def get_priority():
 
 
 def set_priority(priority):
+    if not isinstance(priority, int):
+        priority = int(bool(priority))
     _local.priority = priority
 
 
@@ -53,7 +55,7 @@ def get_trail():
 def set_trail(id_=None, live=False, priority=0, steps=None, **extra):
     _local.id = id_
     _local.live = live
-    _local.priority = priority
+    set_priority(priority)
     _local.steps = steps or []
     _local.extra = extra
 
