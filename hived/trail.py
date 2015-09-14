@@ -28,6 +28,16 @@ def is_live():
     return getattr(_local, 'live', False)
 
 
+def get_priority():
+    return getattr(_local, 'priority', 0)
+
+
+def set_priority(priority):
+    if not isinstance(priority, int):
+        priority = int(bool(priority))
+    _local.priority = priority
+
+
 def get_steps():
     # Should return a new list, because new steps shouldn't be added to the task currently being processed
     return list(getattr(_local, 'steps', []))
@@ -36,14 +46,16 @@ def get_steps():
 def get_trail():
     trail = {'id_': get_id() or generate_id(),
              'live': is_live(),
+             'priority': get_priority(),
              'steps': get_steps()}
     trail.update(getattr(_local, 'extra', {}))
     return trail
 
 
-def set_trail(id_=None, live=False, steps=None, **extra):
+def set_trail(id_=None, live=False, priority=0, steps=None, **extra):
     _local.id = id_
     _local.live = live
+    set_priority(priority)
     _local.steps = steps or []
     _local.extra = extra
 
