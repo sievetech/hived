@@ -52,7 +52,7 @@ class ExternalQueue(object):
             queue.put(msg)
     """
     def __init__(self, host=conf.QUEUE_HOST, username=conf.QUEUE_USER, password=conf.QUEUE_PASSWORD, virtual_host='/',
-                 exchange=None, queue_name=None, heartbeat=None):
+                 exchange=None, queue_name=None, queue_heartbeat=None):
         self.default_exchange = exchange
         self.default_queue_name = queue_name
         self.channel = None
@@ -64,7 +64,7 @@ class ExternalQueue(object):
             'userid': username,
             'password': password,
             'virtual_host': virtual_host,
-            'heartbeat': heartbeat
+            'heartbeat': queue_heartbeat
         }
 
     def __enter__(self):

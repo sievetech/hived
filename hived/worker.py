@@ -20,7 +20,7 @@ class BaseWorker(Thread):
     task_class = None
 
     def __init__(self, logger, queue_name=None, queue_host=conf.QUEUE_HOST, queue_username=conf.QUEUE_USER,
-                 queue_password=conf.QUEUE_PASSWORD, queue_virtual_host='/', process=None, heartbeat=None):
+                 queue_password=conf.QUEUE_PASSWORD, queue_virtual_host='/', process=None, queue_heartbeat=None):
         count = getattr(self.__class__, '__instance_count', 0)
         count += 1
         setattr(self.__class__, '__instance_count', count)
@@ -39,7 +39,7 @@ class BaseWorker(Thread):
             virtual_host=queue_virtual_host,
             username=queue_username,
             password=queue_password,
-            heartbeat=heartbeat
+            queue_heartbeat=queue_heartbeat
         )
         self.process = process
         self.stopped = False
