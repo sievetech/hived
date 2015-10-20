@@ -1,9 +1,10 @@
 import base64
-from datetime import datetime
 import os
 import sys
-from threading import local
 import uuid
+from datetime import datetime
+from threading import local
+from urllib2 import urlopen
 
 from raven.utils.stacks import iter_traceback_frames, get_stack_info
 
@@ -32,6 +33,10 @@ def get_priority():
     return getattr(_local, 'priority', 0)
 
 
+def get_address():
+    return getattr(_local, 'address', 'localhost')
+
+
 def set_priority(priority):
     if not isinstance(priority, int):
         priority = int(bool(priority))
@@ -47,7 +52,8 @@ def get_trail():
     trail = {'id_': get_id() or generate_id(),
              'live': is_live(),
              'priority': get_priority(),
-             'steps': get_steps()}
+             'steps': get_steps(),
+             'address': get_address()}
     trail.update(getattr(_local, 'extra', {}))
     return trail
 
@@ -60,8 +66,15 @@ def set_trail(id_=None, live=False, priority=0, steps=None, **extra):
     _local.extra = extra
 
 
-def set_queue(queue):
+def init_trail(queue):
     _local.queue = queue
+    try:
+        address = (urlopen(conf.EXTERNAL_IP_URL).headers['x-my-ip']
+                   if conf.EXTERNAL_IP_URL
+                   else 'localhost')
+    except:
+        address = 'localhost'
+    _local.address = address
 
 
 class EventType:

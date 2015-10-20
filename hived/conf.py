@@ -17,3 +17,5 @@ QUEUE_USER = get_var('QUEUE_USER', 'guest')
 QUEUE_PASSWORD = get_var('QUEUE_PASSWORD', 'guest')
 
 TRACING_DISABLED = get_var('TRACING_DISABLED') == '1'
+
+EXTERNAL_IP_URL = get_var('EXTERNAL_IP_URL')
