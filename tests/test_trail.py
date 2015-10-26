@@ -22,6 +22,7 @@ class TrailTest(unittest.TestCase):
         trail._local.priority = Mock()
         trail._local.steps = [Mock()]
         trail._local.extra = {'extra_1': 1, 'extra_2': 2}
+        trail._local.address = Mock()
         returned_trail = trail.get_trail()
         self.assertEqual(returned_trail,
                          {'id_': trail._local.id,
@@ -29,7 +30,8 @@ class TrailTest(unittest.TestCase):
                           'priority': trail._local.priority,
                           'steps': trail._local.steps,
                           'extra_1': 1,
-                          'extra_2': 2})
+                          'extra_2': 2,
+                          'address': trail._local.address})
         self.assertIsNot(returned_trail['steps'], trail._local.steps)
 
     def test_get_trail_generates_a_new_id_if_the_current_is_none(self):
@@ -68,11 +70,29 @@ class TrailTest(unittest.TestCase):
         trail.set_priority(True)
         self.assertEqual(trail.get_priority(), 1)
 
-    def test_set_queue(self):
+    def test_init_trail_without_address_url(self):
         trail._local.queue = None
         queue = Mock()
-        trail.set_queue(queue)
+        trail.init_trail(queue)
         self.assertEqual(trail._local.queue, queue)
+        self.assertEqual(trail._local.address, 'localhost')
+
+    def test_init_trail_with_address_url(self):
+        url = 'http://localhost/test_ip'
+        ip = '192.168.24.106'
+        with patch('hived.conf.EXTERNAL_IP_URL', url), \
+             patch('hived.trail.urlopen', ) as url_open:
+            # headers is not actually a dict IRL, but it implements __getitem__
+            url_open().headers = {'x-my-ip': ip}
+            trail.init_trail(Mock())
+            self.assertEqual(trail._local.address, ip)
+
+    def test_init_trail_sets_default_address_on_fail(self):
+        url = 'http://localhost/test_ip'
+        with patch('hived.conf.EXTERNAL_IP_URL', url), \
+             patch('hived.trail.urlopen', side_effect=Exception):
+            trail.init_trail(Mock())
+            self.assertEqual(trail._local.address, 'localhost')
 
     def test_trace_sends_message_to_queue(self):
         now = datetime(2015, 5, 4, 21, 10, 42)
