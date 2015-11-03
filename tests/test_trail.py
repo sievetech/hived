@@ -30,8 +30,7 @@ class TrailTest(unittest.TestCase):
                           'priority': trail._local.priority,
                           'steps': trail._local.steps,
                           'extra_1': 1,
-                          'extra_2': 2,
-                          'address': trail._local.address})
+                          'extra_2': 2})
         self.assertIsNot(returned_trail['steps'], trail._local.steps)
 
     def test_get_trail_generates_a_new_id_if_the_current_is_none(self):

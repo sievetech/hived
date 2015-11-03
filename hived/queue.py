@@ -36,6 +36,7 @@ def add_trail_keys(message, exchange, routing_key):
     message[TRAIL_FIELD]['steps'].append(trail.generate_step_id())
     message[STEP_FIELD] = {'exchange': exchange,
                            'routing_key': routing_key,
+                           'address': trail.get_address(),
                            'process': process.get_name(),
                            'time': datetime.now().isoformat()}
     return message  # Makes it easier to test

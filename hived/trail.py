@@ -52,8 +52,7 @@ def get_trail():
     trail = {'id_': get_id() or generate_id(),
              'live': is_live(),
              'priority': get_priority(),
-             'steps': get_steps(),
-             'address': get_address()}
+             'steps': get_steps()}
     trail.update(getattr(_local, 'extra', {}))
     return trail
 

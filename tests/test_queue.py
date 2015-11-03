@@ -6,8 +6,8 @@ from amqp import Message, AMQPError, ConnectionError
 import mock
 from hived import trail
 
-from hived.queue import (ExternalQueue, MAX_TRIES, SerializationError, META_FIELD, TRAIL_FIELD, STEP_FIELD,
-                         add_trail_keys)
+from hived.queue import (ExternalQueue, MAX_TRIES, SerializationError,
+                         META_FIELD, TRAIL_FIELD, STEP_FIELD, add_trail_keys)
 
 
 MODULE = 'hived.queue.'
@@ -75,13 +75,15 @@ class ExternalQueueTest(unittest.TestCase):
         datetime_mock = mock.Mock()
         datetime_mock.now.return_value = datetime(2015, 6, 26, 11, 52)
         with mock.patch('hived.trail.generate_step_id', return_value='step_id'),\
-                mock.patch('hived.process.get_name', return_value='name'),\
+                mock.patch('hived.trail.get_address', return_value='ip.address'),\
+                mock.patch('hived.process.get_name', return_value='name'), \
                 mock.patch(MODULE + 'datetime', datetime_mock):
             message = add_trail_keys({}, 'exchange', 'routing_key')
 
         self.assertEqual(message, {STEP_FIELD: {'exchange': 'exchange',
                                                 'process': 'name',
                                                 'routing_key': 'routing_key',
+                                                'address': 'ip.address',
                                                 'time': '2015-06-26T11:52:00'},
                                    TRAIL_FIELD: {'id_': 'trail_id', 'live': 'live', 'steps': ['step_id']}})
 
