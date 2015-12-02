@@ -55,7 +55,7 @@ class BaseWorker(Thread):
                 wait_time = 0
 
             try:
-                self.protected_run()
+                self.queue.consume(self.on_message)
             except Exception as e:
                 self.logger.exception({'exception': traceback.format_exc()})
                 trail.trace_exception(e)
@@ -67,14 +67,7 @@ class BaseWorker(Thread):
         self.queue.put(message, self.garbage_queue_name)
         self.queue.ack(delivery_tag)
 
-    def protected_run(self):
-        while not self.stopped:
-            try:
-                message, delivery_tag = self.queue.get()
-            except SerializationError as e:
-                self.logger.info('Error deserializing message: %s', e.body)
-                continue
-
+    def on_message(self, message, delivery_tag):
             try:
                 assert self.validate_message(message)
                 task = self.get_task(message)
@@ -95,8 +88,8 @@ class BaseWorker(Thread):
         message: the deserialized json
 
         A message is considered valid when this method returns True.
-        If it returns False or raises an exception, the message is ignored
-        and requeued to a garbage queue.
+        If it returns False or raises an exception, the message is
+        sent to a garbage queue.
         """
         return True
 

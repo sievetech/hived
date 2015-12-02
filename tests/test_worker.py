@@ -1,4 +1,3 @@
-import time
 import unittest
 
 from mock import call, Mock, patch, ANY
@@ -25,24 +24,25 @@ class BaseWorkerTest(unittest.TestCase):
         self.assertEqual(worker.queue.ack.call_count, 1)
 
     def test_worker_waits_before_restarting_after_a_crash(self):
-        exc = AssertionError('bad bad bad')
+        worker = BaseWorker(Mock(), 'myqueue')
+        worker.already_called = False
+        consume_args = []
 
-        class W(BaseWorker):
-            already_called = False
+        def consume_mock(*args):
+            consume_args.append(args)
+            if worker.already_called:
+                worker.stopped = True
+            else:
+                worker.already_called = True
+            raise AssertionError('bad bad bad')
 
-            def protected_run(self):
-                # make sure it halts 
-                if self.already_called:
-                    self.stopped = True
-                else:
-                    self.already_called = True
-                raise exc
-
-        w = W(Mock(), 'myqueue')
-        with patch.object(time, 'sleep') as sleep:
-            w.run()
-            sleep_times = [c[0][0] for c in sleep.call_args_list]
-            self.assertLess(sleep_times[0], sleep_times[1])
+        worker.queue = Mock(consume=consume_mock)
+        with patch('time.sleep') as sleep_mock,\
+                patch('random.randint', side_effect=[1, 2]):
+            worker.run()
+            self.assertEqual(consume_args,
+                             [(worker.on_message,), (worker.on_message,)])
+            self.assertEqual(sleep_mock.call_args_list, [call(1), call(3)])
 
     def test_get_task_instantiates_task_class(self):
         class W(BaseWorker):
@@ -63,10 +63,9 @@ class BaseWorkerTest(unittest.TestCase):
         worker = W(Mock(), 'myqueue')
         worker.queue = Mock()
         message, ack = Mock(), Mock()
-        worker.queue.get.return_value = (message, ack)
 
         with patch.object(worker, 'send_message_to_garbage') as send_to_garbage_mock:
-            worker.protected_run()
+            worker.on_message(message, ack)
             self.assertEqual(send_to_garbage_mock.call_args_list, [call(message, ack, ANY)])
 
     def test_protected_run_sends_message_to_garbage_if_get_task_fails(self):
@@ -78,10 +77,9 @@ class BaseWorkerTest(unittest.TestCase):
         worker = W(Mock(), 'myqueue')
         worker.queue = Mock()
         message, ack = Mock(), Mock()
-        worker.queue.get.return_value = (message, ack)
 
         with patch.object(worker, 'send_message_to_garbage') as send_to_garbage_mock:
-            worker.protected_run()
+            worker.on_message(message, ack)
             self.assertEqual(send_to_garbage_mock.call_args_list, [call(message, ack, ANY)])
 
 

@@ -59,6 +59,7 @@ class ExternalQueue(object):
         self.channel = None
         self.subscription = None
         self.connection = None
+        self._consume_forever = True
 
         self.connection_parameters = {
             'host': host,
@@ -141,21 +142,19 @@ class ExternalQueue(object):
                          exchange=exchange,
                          routing_key=routing_key)
 
-    def _get_message(self, queue_name):
-        message = self._try('basic_get', queue=queue_name)
-        if message:
-            body = message.body
-            ack = message.delivery_info['delivery_tag']
-            try:
-                message_dict = json.loads(body)
-                message_dict.setdefault(META_FIELD, {})
-            except Exception as e:
-                self.ack(ack)
-                raise SerializationError(e, body)
+    def _parse_message(self, message):
+        body = message.body
+        delivery_tag = message.delivery_info['delivery_tag']
+        try:
+            message_dict = json.loads(body)
+            message_dict.setdefault(META_FIELD, {})
+        except Exception:
+            self.ack(delivery_tag)
+            return
 
-            trail.set_trail(**message_dict.get(TRAIL_FIELD, {}))
-            trail.trace(type_=trail.EventType.process_entered)
-            return message_dict, ack
+        trail.set_trail(**message_dict.get(TRAIL_FIELD, {}))
+        trail.trace(type_=trail.EventType.process_entered)
+        return message_dict, delivery_tag
 
     def get(self, queue_name=None, block=True):
         """
@@ -170,14 +169,31 @@ class ExternalQueue(object):
         message on the queue, returns (None, None).
         """
         while True:
-            message = self._get_message(queue_name or self.default_queue_name)
+            message = self._try('basic_get', queue=queue_name or self.default_queue_name)
             if message:
-                return message
+                parsed = self._parse_message(message)
+                if parsed:
+                    return parsed
 
             if block:
                 time.sleep(.5)
             else:
                 return None, None
+
+    def consume(self, callback, queue_names=None):
+        def message_callback(message):
+            parsed = self._parse_message(message)
+            if parsed:
+                callback(*parsed)
+
+        self._connect()
+        self.channel.basic_qos(prefetch_size=0, prefetch_count=1, a_global=False)
+        queue_names = queue_names or [self.default_queue_name]
+        for queue_name in queue_names:
+            self.channel.basic_consume(queue_name, callback=message_callback)
+
+        while self._consume_forever:
+            self.connection.drain_events()
 
     def ack(self, delivery_tag):
         """
