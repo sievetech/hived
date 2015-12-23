@@ -185,15 +185,12 @@ class ExternalQueueTest(unittest.TestCase):
             self.assertEqual(trace_mock.call_args_list,
                              [call(type_=trail.EventType.process_entered)])
 
-    def test_consume(self):
-        def side_effect():
-            self.external_queue._consume_forever = False
-
+    def test_setup_consumer(self):
         callback = Mock()
-        self.external_queue.connection = Mock(drain_events=Mock(side_effect=side_effect))
+        self.external_queue.connection = Mock()
         self.external_queue.channel = Mock()
         with patch(MODULE + 'ExternalQueue._try') as try_mock:
-            self.external_queue.consume(callback, ['queue_1', 'queue_2'])
+            self.external_queue.setup_consumer(callback, ['queue_1', 'queue_2'])
 
             self.assertEqual(try_mock.call_args_list,
                              [call('basic_qos', prefetch_size=0,
@@ -201,7 +198,11 @@ class ExternalQueueTest(unittest.TestCase):
             self.assertEqual(self.external_queue.channel.basic_consume.call_args_list,
                              [call('queue_1', callback=ANY),
                               call('queue_2', callback=ANY)])
-            self.assertEqual(self.external_queue.connection.drain_events.call_count, 1)
+
+    def test_consume(self):
+        self.external_queue.connection = Mock()
+        self.external_queue.consume()
+        self.assertEqual(self.external_queue.connection.drain_events.call_count, 1)
 
     def test_ack_ignores_connection_errors(self):
         self.external_queue.channel = self.channel_mock

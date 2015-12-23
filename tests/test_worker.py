@@ -1,4 +1,5 @@
 import unittest
+from amqp import AMQPError
 
 from mock import call, Mock, patch, ANY
 from hived.queue import ConnectionError
@@ -29,26 +30,39 @@ class BaseWorkerTest(unittest.TestCase):
                               'queue_name_garbage'))
         self.assertEqual(self.worker.queue.ack.call_count, 1)
 
-    def test_worker_waits_before_restarting_after_a_crash(self):
-        worker = BaseWorker(Mock(), 'myqueue')
-        worker.already_called = False
-        consume_args = []
+    def test_run_waits_before_restarting_after_a_crash(self):
+        self.worker.consume_count = 0
 
-        def consume_mock(*args):
-            consume_args.append(args)
-            if worker.already_called:
-                worker.stopped = True
-            else:
-                worker.already_called = True
-            raise AssertionError('bad bad bad')
+        def consume_mock():
+            if self.worker.consume_count:
+                self.worker.stopped = True
+            self.worker.consume_count += 1
+            raise AssertionError('')
 
-        worker.queue = Mock(consume=consume_mock)
+        self.worker.queue.consume = consume_mock
+        setup_consumer = self.worker.queue.setup_consumer = Mock()
         with patch('time.sleep') as sleep_mock,\
                 patch('random.randint', side_effect=[1, 2]):
-            worker.run()
-            self.assertEqual(consume_args,
-                             [(worker.on_message,), (worker.on_message,)])
+            self.worker.run()
+
+            self.assertEqual(self.worker.consume_count, 2)
+            self.assertEqual(setup_consumer.call_args_list,
+                             [call(self.worker.on_message)])
             self.assertEqual(sleep_mock.call_args_list, [call(1), call(3)])
+
+    def test_run_calls_setup_consumer_again_after_amqp_error(self):
+        def consume_mock():
+            self.worker.stopped = True
+            raise AMQPError()
+
+        self.worker.queue.consume = consume_mock
+        setup_consumer = self.worker.queue.setup_consumer = Mock()
+        with patch('time.sleep'):
+            self.worker.run()
+
+            self.assertEqual(setup_consumer.call_args_list,
+                             [call(self.worker.on_message),
+                              call(self.worker.on_message)])
 
     def test_get_task_instantiates_task_class(self):
         class W(BaseWorker):

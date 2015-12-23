@@ -59,7 +59,6 @@ class ExternalQueue(object):
         self.channel = None
         self.subscription = None
         self.connection = None
-        self._consume_forever = True
 
         self.connection_parameters = {
             'host': host,
@@ -184,7 +183,7 @@ class ExternalQueue(object):
             else:
                 return None, None
 
-    def consume(self, callback, queue_names=None):
+    def setup_consumer(self, callback, queue_names=None):
         def message_callback(message):
             parsed = self._parse_message(message)
             if parsed:
@@ -195,8 +194,8 @@ class ExternalQueue(object):
         for queue_name in queue_names:
             self.channel.basic_consume(queue_name, callback=message_callback)
 
-        while self._consume_forever:
-            self.connection.drain_events()
+    def consume(self):
+        self.connection.drain_events()
 
     def ack(self, delivery_tag):
         """

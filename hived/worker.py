@@ -3,6 +3,7 @@ from threading import Thread
 import traceback
 
 import time
+from amqp import AMQPError
 from hived import conf, trail
 from hived.queue import ExternalQueue
 
@@ -47,6 +48,7 @@ class BaseWorker(Thread):
         self.logger.info('%s started' % self)
         trail.init_trail(self.queue)  # Needs to be run inside the thread
 
+        self.queue.setup_consumer(self.on_message)
         wait_time = 0
         while not self.stopped:
             wait_time += random.randint(1, 10)
@@ -54,11 +56,15 @@ class BaseWorker(Thread):
                 wait_time = 0
 
             try:
-                self.queue.consume(self.on_message)
-            except Exception as e:
+                while not self.stopped:
+                    self.queue.consume()
+            except Exception as exc:
                 self.logger.exception({'exception': traceback.format_exc()})
-                trail.trace_exception(e)
+                trail.trace_exception(exc)
                 time.sleep(wait_time)
+
+                if isinstance(exc, AMQPError):
+                    self.queue.setup_consumer(self.on_message)
 
     def send_message_to_garbage(self, message, delivery_tag, error):
         self.logger.info('Sending message to garbage queue: %s. Error: %s', message, error)
