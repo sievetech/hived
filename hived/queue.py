@@ -77,6 +77,10 @@ class ExternalQueue(object):
         return False
 
     def _connect(self):
+        try:
+            self.close()
+        except Exception:
+            pass
         self.connection = amqp.Connection(**self.connection_parameters)
         self.channel = self.connection.channel()
         if self.subscription:
@@ -186,8 +190,7 @@ class ExternalQueue(object):
             if parsed:
                 callback(*parsed)
 
-        self._connect()
-        self.channel.basic_qos(prefetch_size=0, prefetch_count=1, a_global=False)
+        self._try('basic_qos', prefetch_size=0, prefetch_count=1, a_global=False)
         queue_names = queue_names or [self.default_queue_name]
         for queue_name in queue_names:
             self.channel.basic_consume(queue_name, callback=message_callback)

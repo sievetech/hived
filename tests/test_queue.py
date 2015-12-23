@@ -3,11 +3,11 @@ import json
 import unittest
 
 from amqp import Message, AMQPError, ConnectionError
-import mock
-from hived import trail
+from mock import MagicMock, patch, call, Mock, ANY
 
 from hived.queue import (ExternalQueue, MAX_TRIES, SerializationError,
                          META_FIELD, TRAIL_FIELD, STEP_FIELD, add_trail_keys)
+from hived import trail
 
 
 MODULE = 'hived.queue.'
@@ -16,22 +16,22 @@ MODULE = 'hived.queue.'
 class ExternalQueueTest(unittest.TestCase):
     def setUp(self):
         self.trail = {'id_': 'trail_id', 'live': 'live', 'steps': []}
-        self.trail_patcher = mock.patch('hived.trail.get_trail', return_value=self.trail)
+        self.trail_patcher = patch('hived.trail.get_trail', return_value=self.trail)
         self.trail_patcher.start()
 
         _delivery_info = {'delivery_tag': 'delivery_tag'}
 
-        self.message = mock.MagicMock()
+        self.message = MagicMock()
         self.message.body = json.dumps({TRAIL_FIELD: self.trail})
         self.message.delivery_info = _delivery_info
 
-        self.channel_mock = mock.MagicMock()
+        self.channel_mock = MagicMock()
         self.channel_mock.basic_get.return_value = self.message
 
-        self.connection = mock.MagicMock()
+        self.connection = MagicMock()
         self.connection.channel.return_value = self.channel_mock
 
-        self.connection_cls_patcher = mock.patch('amqp.Connection',
+        self.connection_cls_patcher = patch('amqp.Connection',
                                                  return_value=self.connection)
         self.connection_cls_mock = self.connection_cls_patcher.start()
 
@@ -43,13 +43,18 @@ class ExternalQueueTest(unittest.TestCase):
         self.connection_cls_patcher.stop()
         self.trail_patcher.stop()
 
+    def test_connect_calls_close_before_creating_a_new_connection(self):
+        with patch(MODULE + 'ExternalQueue.close') as close_mock:
+            self.external_queue._connect()
+            self.assertEqual(close_mock.call_count, 1)
+
     def test__try_connects_if_disconnected(self):
         self.channel_mock.method.return_value = 'rv'
         rv = self.external_queue._try('method', arg='value')
 
         self.assertEqual(self.connection_cls_mock.call_count, 1)
         self.assertEqual(self.channel_mock.method.call_args_list,
-                         [mock.call(arg='value')])
+                         [call(arg='value')])
         self.assertEqual(rv, 'rv')
 
     def test__try_tries_up_to_max_tries(self):
@@ -67,17 +72,17 @@ class ExternalQueueTest(unittest.TestCase):
         amqp_msg = Message('body', delivery_mode=2, content_type='application/json', priority=0)
         self.external_queue.put(body='body')
         self.assertEqual(self.channel_mock.basic_publish.call_args_list,
-                         [mock.call(msg=amqp_msg,
-                                    exchange='default_exchange',
-                                    routing_key='')])
+                         [call(msg=amqp_msg,
+                               exchange='default_exchange',
+                               routing_key='')])
 
     def test_add_trail_keys(self):
-        datetime_mock = mock.Mock()
+        datetime_mock = Mock()
         datetime_mock.now.return_value = datetime(2015, 6, 26, 11, 52)
-        with mock.patch('hived.trail.generate_step_id', return_value='step_id'),\
-                mock.patch('hived.trail.get_address', return_value='ip.address'),\
-                mock.patch('hived.process.get_name', return_value='name'), \
-                mock.patch(MODULE + 'datetime', datetime_mock):
+        with patch('hived.trail.generate_step_id', return_value='step_id'),\
+                patch('hived.trail.get_address', return_value='ip.address'),\
+                patch('hived.process.get_name', return_value='name'), \
+                patch(MODULE + 'datetime', datetime_mock):
             message = add_trail_keys({}, 'exchange', 'routing_key')
 
         self.assertEqual(message, {STEP_FIELD: {'exchange': 'exchange',
@@ -88,52 +93,53 @@ class ExternalQueueTest(unittest.TestCase):
                                    TRAIL_FIELD: {'id_': 'trail_id', 'live': 'live', 'steps': ['step_id']}})
 
     def test_put_adds_trail_key_and_step_info_to_messages_sent(self):
-        datetime_mock = mock.Mock()
+        datetime_mock = Mock()
         datetime_mock.now.return_value = datetime(2015, 6, 26, 11, 52)
-        with mock.patch(MODULE + 'add_trail_keys', return_value={'key': 'value', 'trail': 'field'}),\
-                mock.patch(MODULE + 'Message') as MockMessage:
+        with patch(MODULE + 'add_trail_keys', return_value={'key': 'value', 'trail': 'field'}),\
+                patch(MODULE + 'Message') as MockMessage:
             self.external_queue.put(message_dict={'key': 'value'}, exchange='exchange', routing_key='routing_key')
 
         self.trail['steps'] = ['step_id']
         self.assertEqual(MockMessage.call_args_list,
-                         [mock.call(json.dumps({'key': 'value', 'trail': 'field'}),
-                                    delivery_mode=2, content_type='application/json', priority=0)])
+                         [call(json.dumps({'key': 'value', 'trail': 'field'}),
+                               delivery_mode=2, content_type='application/json', priority=0)])
 
     def test_put_serializes_message_if_necessary(self):
         message = {'key': 'value'}
-        with mock.patch(MODULE + 'Message') as MockMessage:
+        with patch(MODULE + 'Message') as MockMessage:
             self.external_queue.put(message_dict=message)
 
         self.assertEqual(MockMessage.call_args_list,
-                         [mock.call(json.dumps(message), delivery_mode=2,
-                                    content_type='application/json', priority=0)])
+                         [call(json.dumps(message), delivery_mode=2,
+                               content_type='application/json', priority=0)])
 
     def test_put_raises_serialization_error_if_message_cant_be_serialized_to_json(self):
         self.assertRaises(SerializationError, self.external_queue.put, message_dict=ValueError)
 
     def test_passes_priority_to_message_object(self):
-        body = mock.Mock()
-        with mock.patch(MODULE + 'Message') as MockMessage,\
-                mock.patch('hived.trail.get_priority', return_value=0):
+        body = Mock()
+        with patch(MODULE + 'Message') as MockMessage,\
+                patch('hived.trail.get_priority', return_value=0):
             self.external_queue.put(body=body, priority=1)
 
         self.assertEqual(MockMessage.call_args_list,
-                         [mock.call(body, delivery_mode=2,
-                                    content_type='application/json', priority=1)])
+                         [call(body, delivery_mode=2,
+                               content_type='application/json', priority=1)])
 
     def test_put_uses_trail_priority(self):
-        body = mock.Mock()
-        with mock.patch(MODULE + 'Message') as MockMessage,\
-                mock.patch('hived.trail.get_priority', return_value=42):
+        body = Mock()
+        with patch(MODULE + 'Message') as MockMessage,\
+                patch('hived.trail.get_priority', return_value=42):
             self.external_queue.put(body=body)
 
         self.assertEqual(MockMessage.call_args_list,
-                         [mock.call(body, delivery_mode=2,
+                         [call(body, delivery_mode=2,
                                     content_type='application/json', priority=42)])
 
     def test_get_uses_default_queue_if_not_supplied(self):
         self.external_queue.get()
-        self.assertEqual(self.channel_mock.basic_get.call_args_list, [mock.call(queue='default_queue')])
+        self.assertEqual(self.channel_mock.basic_get.call_args_list,
+                         [call(queue='default_queue')])
 
     def test_get_returns_none_if_block_is_false_and_queue_is_empty(self):
         self.channel_mock.basic_get.return_value = None
@@ -143,16 +149,17 @@ class ExternalQueueTest(unittest.TestCase):
     def test_get_sleeps_and_tries_again_until_queue_is_not_empty(self):
         empty_rv = None
         self.channel_mock.basic_get.side_effect = [empty_rv, empty_rv, self.message]
-        with mock.patch('time.sleep') as sleep,\
-                mock.patch(MODULE + 'ExternalQueue._parse_message') as parse_message_mock:
+        with patch('time.sleep') as sleep,\
+                patch(MODULE + 'ExternalQueue._parse_message') as parse_message_mock:
             message = self.external_queue.get(queue_name='queue_name')
 
             self.assertEqual(message, parse_message_mock.return_value)
-            self.assertEqual(parse_message_mock.call_args_list, [mock.call(self.message)])
+            self.assertEqual(parse_message_mock.call_args_list,
+                             [call(self.message)])
             self.assertEqual(self.channel_mock.basic_get.call_args_list,
-                             [mock.call(queue='queue_name'),
-                              mock.call(queue='queue_name'),
-                              mock.call(queue='queue_name')])
+                             [call(queue='queue_name'),
+                              call(queue='queue_name'),
+                              call(queue='queue_name')])
             self.assertEqual(sleep.call_count, 2)
 
     def test_get_crashes_if_default_queue_does_not_exist(self):
@@ -166,32 +173,34 @@ class ExternalQueueTest(unittest.TestCase):
         self.assertEqual(ack, 'delivery_tag')
 
     def test_parse_message_calls_set_trail(self):
-        with mock.patch('hived.trail.set_trail') as set_trail_mock:
+        with patch('hived.trail.set_trail') as set_trail_mock:
             message, ack = self.external_queue._parse_message(self.message)
-            self.assertEqual(set_trail_mock.call_args_list, [mock.call(id_='trail_id', live='live', steps=[])])
+            self.assertEqual(set_trail_mock.call_args_list,
+                             [call(id_='trail_id', live='live', steps=[])])
             self.assertEqual(ack, 'delivery_tag')
 
     def test_parse_message_traces_process_entered_event(self):
-        with mock.patch('hived.trail.trace') as trace_mock:
+        with patch('hived.trail.trace') as trace_mock:
             self.external_queue._parse_message(self.message)
-            self.assertEqual(trace_mock.call_args_list, [mock.call(type_=trail.EventType.process_entered)])
+            self.assertEqual(trace_mock.call_args_list,
+                             [call(type_=trail.EventType.process_entered)])
 
     def test_consume(self):
         def side_effect():
             self.external_queue._consume_forever = False
 
-        callback = mock.Mock()
-        self.external_queue.connection = mock.Mock(drain_events=mock.Mock(side_effect=side_effect))
-        self.external_queue.channel = mock.Mock()
-        with mock.patch(MODULE + 'ExternalQueue._connect') as connect_mock:
+        callback = Mock()
+        self.external_queue.connection = Mock(drain_events=Mock(side_effect=side_effect))
+        self.external_queue.channel = Mock()
+        with patch(MODULE + 'ExternalQueue._try') as try_mock:
             self.external_queue.consume(callback, ['queue_1', 'queue_2'])
 
-            self.assertEqual(connect_mock.call_count, 1)
-            self.assertEqual(self.external_queue.channel.basic_qos.call_args_list,
-                             [mock.call(prefetch_size=0, prefetch_count=1, a_global=False)])
+            self.assertEqual(try_mock.call_args_list,
+                             [call('basic_qos', prefetch_size=0,
+                                   prefetch_count=1, a_global=False)])
             self.assertEqual(self.external_queue.channel.basic_consume.call_args_list,
-                             [mock.call('queue_1', callback=mock.ANY),
-                              mock.call('queue_2', callback=mock.ANY)])
+                             [call('queue_1', callback=ANY),
+                              call('queue_2', callback=ANY)])
             self.assertEqual(self.external_queue.connection.drain_events.call_count, 1)
 
     def test_ack_ignores_connection_errors(self):

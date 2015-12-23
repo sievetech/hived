@@ -3,9 +3,8 @@ from threading import Thread
 import traceback
 
 import time
-from hived import conf
-from hived import trail
-from hived.queue import ExternalQueue, SerializationError
+from hived import conf, trail
+from hived.queue import ExternalQueue
 
 
 class BaseWorker(Thread):
@@ -67,20 +66,23 @@ class BaseWorker(Thread):
         self.queue.put(message, self.garbage_queue_name)
         self.queue.ack(delivery_tag)
 
+    def _call_process_task(self, delivery_tag, task):
+        try:
+            self.process_task(task)
+        except Exception:
+            self.queue.reject(delivery_tag)
+            raise
+        else:
+            self.queue.ack(delivery_tag)
+
     def on_message(self, message, delivery_tag):
-            try:
-                assert self.validate_message(message)
-                task = self.get_task(message)
-            except (AssertionError, TypeError, KeyError, ValueError) as e:
-                self.send_message_to_garbage(message, delivery_tag, e)
-            else:
-                try:
-                    self.process_task(task)
-                except:
-                    self.queue.reject(delivery_tag)
-                    raise
-                else:
-                    self.queue.ack(delivery_tag)
+        try:
+            assert self.validate_message(message)
+            task = self.get_task(message)
+        except (AssertionError, TypeError, KeyError, ValueError) as e:
+            self.send_message_to_garbage(message, delivery_tag, e)
+        else:
+            self._call_process_task(delivery_tag, task)
 
     def validate_message(self, message):
         """
