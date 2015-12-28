@@ -63,7 +63,7 @@ class BaseWorker(Thread):
                 trail.trace_exception(exc)
                 time.sleep(wait_time)
 
-                if isinstance(exc, AMQPError):
+                if isinstance(exc, (AMQPError, IOError)):
                     self.queue.setup_consumer(self.on_message)
 
     def send_message_to_garbage(self, message, delivery_tag, error):
