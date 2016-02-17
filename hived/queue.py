@@ -95,12 +95,12 @@ class ExternalQueue(object):
 
         try:
             return getattr(self.channel, method)(**kwargs)
-        except (AMQPError, IOError) as e:
+        except (AMQPError, IOError):
             if _tries < MAX_TRIES:
                 self._connect()
                 return self._try(method, _tries + 1, **kwargs)
             else:
-                raise ConnectionError(e)
+                raise
 
     def _subscribe(self):
         self.default_queue_name = '%s_%s' % (self.subscription, uuid.uuid4())

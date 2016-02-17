@@ -80,7 +80,7 @@ class ExternalQueueTest(unittest.TestCase):
 
     def test__try_doesnt_try_more_than_max_tries(self):
         self.channel_mock.method.side_effect = [AMQPError, AMQPError, AMQPError, 'rv']
-        self.assertRaises(ConnectionError, self.external_queue._try, 'method')
+        self.assertRaises(AMQPError, self.external_queue._try, 'method')
 
     def test_put_uses_default_exchange_if_not_supplied(self):
         amqp_msg = Message('body', delivery_mode=2, content_type='application/json', priority=0)
