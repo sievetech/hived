@@ -89,18 +89,19 @@ class ExternalQueue(object):
         if self.connection is not None:
             self.connection.close()
 
-    def _try(self, method, _tries=1, **kwargs):
+    def _try(self, method, **kwargs):
         if self.channel is None:
             self._connect()
 
-        try:
-            return getattr(self.channel, method)(**kwargs)
-        except (AMQPError, IOError):
-            if _tries < MAX_TRIES:
-                self._connect()
-                return self._try(method, _tries + 1, **kwargs)
-            else:
-                raise
+        for attempt in xrange(1, MAX_TRIES + 1):
+            try:
+                return getattr(self.channel, method)(**kwargs)
+
+            except (AMQPError, IOError):
+                if attempt < MAX_TRIES:
+                    self._connect()
+                else:
+                    raise
 
     def _subscribe(self):
         self.default_queue_name = '%s_%s' % (self.subscription, uuid.uuid4())

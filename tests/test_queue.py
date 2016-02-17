@@ -79,7 +79,7 @@ class ExternalQueueTest(unittest.TestCase):
         self.assertEqual(rv, 'rv')
 
     def test__try_doesnt_try_more_than_max_tries(self):
-        self.channel_mock.method.side_effect = [AMQPError, AMQPError, AMQPError, 'rv']
+        self.channel_mock.method.side_effect = [AMQPError, AMQPError, AMQPError]
         self.assertRaises(AMQPError, self.external_queue._try, 'method')
 
     def test_put_uses_default_exchange_if_not_supplied(self):
