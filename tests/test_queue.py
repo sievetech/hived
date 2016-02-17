@@ -89,7 +89,7 @@ class ExternalQueueTest(unittest.TestCase):
         self.assertEqual(self.channel_mock.basic_publish.call_args_list,
                          [call(msg=amqp_msg,
                                exchange='default_exchange',
-                               mandatory=True,
+                               mandatory=False,
                                routing_key='')])
 
     def test_add_trail_keys(self):

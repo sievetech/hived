@@ -117,7 +117,8 @@ class ExternalQueue(object):
         self.subscription = routing_key
         self._connect()
 
-    def put(self, message_dict=None, routing_key='', exchange=None, body=None, priority=0):
+    def put(self, message_dict=None, routing_key='', exchange=None, body=None,
+            priority=0, mandatory=False):
         """
         Publishes a message to the queue.
         message_dict: the json-serializable object that will be published
@@ -144,7 +145,7 @@ class ExternalQueue(object):
         return self._try('basic_publish',
                          msg=message,
                          exchange=exchange,
-                         mandatory=True,
+                         mandatory=mandatory,
                          routing_key=routing_key)
 
     def _parse_message(self, message):
