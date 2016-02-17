@@ -144,6 +144,7 @@ class ExternalQueue(object):
         return self._try('basic_publish',
                          msg=message,
                          exchange=exchange,
+                         mandatory=True,
                          routing_key=routing_key)
 
     def _parse_message(self, message):

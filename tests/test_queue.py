@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 import unittest
 
-from amqp import Message, AMQPError, ConnectionError
+from amqp import Message, AMQPError, ConnectionError, Connection
 from mock import MagicMock, patch, call, Mock, ANY
 
 from hived.queue import (ExternalQueue, MAX_TRIES, SerializationError,
@@ -27,12 +27,13 @@ class ExternalQueueTest(unittest.TestCase):
 
         self.channel_mock = MagicMock()
         self.channel_mock.basic_get.return_value = self.message
+        self.channel_mock.basic_publish.return_value = None
 
         self.connection = MagicMock()
         self.connection.channel.return_value = self.channel_mock
 
         self.connection_cls_patcher = patch('amqp.Connection',
-                                                 return_value=self.connection)
+                                            return_value=self.connection)
         self.connection_cls_mock = self.connection_cls_patcher.start()
 
         self.external_queue = ExternalQueue('localhost', 'username', 'pwd',
@@ -88,6 +89,7 @@ class ExternalQueueTest(unittest.TestCase):
         self.assertEqual(self.channel_mock.basic_publish.call_args_list,
                          [call(msg=amqp_msg,
                                exchange='default_exchange',
+                               mandatory=True,
                                routing_key='')])
 
     def test_add_trail_keys(self):
