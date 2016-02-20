@@ -14,7 +14,8 @@ setup(
     url='https://github.com/sievetech/hived',
     packages=['hived'],
     entry_points={'console_scripts': ['run_module = hived.run_module:main']},
-    install_requires=['amqp==1.4.7', 'simplejson>=2.6.2', 'raven>=5.3.1'],
+    install_requires=['amqp==1.4.7', 'simplejson>=2.6.2', 'raven>=5.3.1',
+                      'six==1.10.0'],
     test_suite='tests',
     tests_require=['mock==1.3.0'],
     classifiers=[
@@ -22,6 +23,7 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
