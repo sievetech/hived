@@ -16,6 +16,7 @@ setup(
     entry_points={'console_scripts': ['run_module = hived.run_module:main']},
     install_requires=['amqp==1.4.7', 'simplejson>=2.6.2', 'raven>=5.3.1'],
     test_suite='tests',
+    tests_require=['mock==1.3.0'],
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
