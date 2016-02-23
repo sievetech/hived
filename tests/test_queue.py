@@ -48,6 +48,20 @@ class ExternalQueueTest(unittest.TestCase):
             self.external_queue._connect()
             self.assertEqual(close_mock.call_count, 1)
 
+    def test_connect_ignores_close_errors(self):
+        with patch.object(self.external_queue, 'close', side_effect=[Exception]) as mock_close:
+            self.external_queue._connect()
+            self.assertRaises
+            self.assertEqual(mock_close.call_count, 1)
+
+    def test_connect_subscribes_if_subscription_is_set(self):
+        with patch.object(self.external_queue, 'close'), \
+             patch.object(self.external_queue, '_subscribe') as mock_subscribe:
+            self.external_queue.subscription = 'routing_key'
+            self.external_queue._connect()
+
+            self.assertEqual(mock_subscribe.call_count, 1)
+
     def test__try_connects_if_disconnected(self):
         self.channel_mock.method.return_value = 'rv'
         rv = self.external_queue._try('method', arg='value')
@@ -185,6 +199,14 @@ class ExternalQueueTest(unittest.TestCase):
             self.assertEqual(trace_mock.call_args_list,
                              [call(type_=trail.EventType.process_entered)])
 
+    def test_malformed_message_should_ack(self):
+        queue = self.external_queue
+        self.message.body = "{'foo': True}"
+        with patch.object(queue, 'ack') as mock_ack:
+            result = queue._parse_message(self.message)
+            self.assertIsNone(result)
+            self.assertEqual(mock_ack.call_args_list, [call(self.message.delivery_info['delivery_tag'])])
+
     def test_setup_consumer(self):
         callback = Mock()
         self.external_queue.connection = Mock()
@@ -219,3 +241,44 @@ class ExternalQueueTest(unittest.TestCase):
         with queue as q:
             self.assertEqual(q, queue)
         # Do nothing to force close without connection
+
+    def test_subscribe_declares_queue(self):
+        with patch.object(self.external_queue, 'channel') as mock_channel:
+            self.external_queue._subscribe()
+
+            self.assertEqual(mock_channel.queue_declare.call_args_list, [call(queue=self.external_queue.default_queue_name, durable=False, exclusive=True, auto_delete=True)])
+
+    def test_subscribe_binds_to_queue(self):
+        with patch.object(self.external_queue, 'channel') as mock_channel:
+            self.external_queue._subscribe()
+
+            self.assertEqual(mock_channel.queue_bind.call_args_list, [call(exchange='notifications', queue=self.external_queue.default_queue_name, routing_key=self.external_queue.subscription)])
+
+    def test_subscribe_sets_subscription(self):
+        with patch.object(self.external_queue, '_connect'):
+            self.external_queue.subscribe('routing_key')
+
+            self.assertEqual('routing_key', self.external_queue.subscription)
+
+    def test_subscribe_connects_to_server(self):
+        with patch.object(self.external_queue, '_connect') as mock_connect:
+            self.external_queue.subscribe('routing_key')
+
+            self.assertEqual(mock_connect.call_count, 1)
+
+    def test_message_callback_parses_message(self):
+        def callback(message=None, delivery_tag=None):
+            return message
+
+        def stub_basic_consume(queue_name, callback):
+            callback(self.message)
+
+        mock_channel = Mock()
+        mock_channel.basic_consume = stub_basic_consume
+
+        with patch.object(self.external_queue, '_try'), \
+             patch.object(self.external_queue, '_parse_message', return_value=self.message) as mock_parse_message:
+            self.external_queue.channel = mock_channel
+            self.external_queue.setup_consumer(callback, ['queue_1'])
+
+            self.assertEqual(mock_parse_message.call_args_list, [call(self.message)])
