@@ -4,7 +4,7 @@ import argparse
 import importlib
 
 
-def parse_args():
+def parse_args():  # pragma: no cover
     parser = argparse.ArgumentParser(description='Run process / cron')
     parser.add_argument('module_path',
                         action='store',
@@ -18,7 +18,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def main():  # pragma: no cover
     args = parse_args()
     sys.argv.remove(args.module_path)  # should not interfere with script's args
     module = importlib.import_module(args.module_path)
@@ -28,4 +28,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
