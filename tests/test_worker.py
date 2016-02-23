@@ -2,7 +2,6 @@ import unittest
 from amqp import AMQPError
 
 from mock import call, Mock, patch, ANY
-from hived.queue import ConnectionError
 
 from hived.worker import BaseWorker
 
@@ -74,6 +73,12 @@ class BaseWorkerTest(unittest.TestCase):
         self.assertEqual(task, W.task_class.return_value)
         self.assertEqual(W.task_class.call_args_list, [call(message)])
 
+    def test_get_task_always_return_message(self):
+        message = Mock()
+        task = self.worker.get_task(message)
+
+        self.assertEqual(task, message)
+
     def test_sends_message_to_garbage_if_validate_message_fails(self):
         self.worker.validate_message = Mock(side_effect=AssertionError)
         message, delivery_tag = Mock(), Mock()
@@ -123,6 +128,9 @@ class BaseWorkerTest(unittest.TestCase):
             self.assertEqual(process_task_mock.call_args_list, [call(task)])
             self.assertEqual(self.worker.queue.ack.call_args_list,
                              [call(delivery_tag)])
+
+    def test_process_task_raises_NotImplementedError(self):
+        self.assertRaises(NotImplementedError, self.worker.process_task, Mock())
 
 
 if __name__ == '__main__':
