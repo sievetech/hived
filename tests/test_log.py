@@ -53,7 +53,7 @@ class LogTest(unittest.TestCase):
         formatted = json.loads(self.formatter.format(record))
 
         self.assertEqual(formatted['msg'], 'message')
-        self.assertEqual(formatted['_time'], '2016-02-19 23:23:11,200')
+        self.assertEqual(formatted['_time'], '2016-02-20 01:23:11,200')
         self.assertEqual(formatted['_level'], record.levelname)
         self.assertEqual(formatted['_name'], record.name)
 
@@ -76,4 +76,3 @@ class LogTest(unittest.TestCase):
             formatted = json.loads(self.formatter.format(record))
 
             self.assertEqual(formatted['_trail_id'], 'trail_id')
-

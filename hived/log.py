@@ -1,5 +1,7 @@
 import logging
 
+from time import gmtime
+
 import simplejson as json
 
 from hived import trail
@@ -13,6 +15,9 @@ def json_handler(obj):
 
 
 class JsonFormatter(logging.Formatter):
+    def __init__(self, *args, **kwargs):
+        self.converter = gmtime
+
     def format(self, record):
         if isinstance(record.msg, dict):
             record_dict = record.msg
