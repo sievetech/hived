@@ -14,7 +14,7 @@ _local = local()
 
 
 def generate_id():
-    return uuid.uuid4()
+    return str(uuid.uuid4())
 
 
 def generate_step_id():
