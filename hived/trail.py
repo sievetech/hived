@@ -4,9 +4,9 @@ import sys
 import uuid
 from datetime import datetime
 from threading import local
-from urllib2 import urlopen
 
 from raven.utils.stacks import iter_traceback_frames, get_stack_info
+from six.moves.urllib.request import urlopen
 
 from hived import conf
 
@@ -18,7 +18,7 @@ def generate_id():
 
 
 def generate_step_id():
-    return base64.urlsafe_b64encode(os.urandom(6))
+    return base64.urlsafe_b64encode(os.urandom(6)).decode('utf-8')
 
 
 def get_id():

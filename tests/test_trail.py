@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 import unittest
 
 from mock import patch, call, Mock
@@ -9,8 +10,10 @@ MODULE_NAME = 'hived.trail'
 
 class TrailTest(unittest.TestCase):
     def test_generates_id_using_uuid(self):
-        with patch('uuid.uuid4', return_value='uuid'):
-            self.assertEqual(trail.generate_id(), 'uuid')
+        uuid = UUID('4ceb1e9d-fce0-4101-87fb-474e4c6c448a')
+        with patch('uuid.uuid4', return_value=uuid):
+            result = trail.generate_id()
+            self.assertEqual(result, '4ceb1e9d-fce0-4101-87fb-474e4c6c448a')
 
     def test_get_id_returns_existing_id(self):
         trail._local.id = 42
