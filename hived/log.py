@@ -1,11 +1,11 @@
 import logging
-import os
 
 from time import gmtime
 
 import simplejson as json
 
 from hived import trail
+from hived import conf
 
 
 def json_handler(obj):
@@ -33,4 +33,4 @@ class JsonFormatter(logging.Formatter):
         if trail.get_id():
             record_dict['_trail_id'] = trail.get_id()
 
-        return "{}{}".format(os.environ.get("HIVED_LOG_PREFIX", ""), json.dumps(record_dict, default=json_handler))
+        return "{}{}".format(conf.LOG_PREFIX, json.dumps(record_dict, default=json_handler))
