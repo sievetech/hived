@@ -1,4 +1,5 @@
 import logging
+import os
 
 from time import gmtime
 
@@ -32,4 +33,4 @@ class JsonFormatter(logging.Formatter):
         if trail.get_id():
             record_dict['_trail_id'] = trail.get_id()
 
-        return json.dumps(record_dict, default=json_handler)
+        return "{}{}".format(os.environ.get("HIVED_LOG_PREFIX", ""), json.dumps(record_dict, default=json_handler))
