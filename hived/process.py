@@ -3,11 +3,18 @@ import logging
 import logging.handlers
 import os
 import sys
+from collections import defaultdict
 
 from hived.log import JsonFormatter
+from hived.conf import LOG_TO_CONSOLE, LOG_TO_FILE, CONSOLE_LOGLEVEL
 
 _name = None
 
+_LOG_LEVELS = defaultdict(lambda: logging.INFO)
+
+_LOG_LEVELS["INFO"] = logging.INFO
+_LOG_LEVELS["ERROR"] = logging.ERROR
+_LOG_LEVELS["DEBUG"] = logging.DEBUG
 
 def get_name():
     return _name
@@ -15,17 +22,23 @@ def get_name():
 
 def get_logging_handlers(process_name):
     """Returns a list of logging handlers, each with their level already set"""
-    std_out = logging.StreamHandler(sys.stdout)
-    std_out.setLevel(logging.DEBUG)
 
-    path = os.path.expanduser('~/logs')
-    if not os.path.isdir(path):
-        os.mkdir(path)
-    rotating_file = logging.handlers.RotatingFileHandler('%s/%s.log' % (path, process_name), maxBytes=10000000,
-                                                         backupCount=10, encoding='utf-8')
-    rotating_file.setLevel(logging.INFO)
+    loggers = []
+    if LOG_TO_CONSOLE:
+        std_out = logging.StreamHandler(sys.stdout)
+        std_out.setLevel(_LOG_LEVELS[CONSOLE_LOGLEVEL])
+        loggers.append(std_out)
 
-    return [std_out, rotating_file]
+    if LOG_TO_FILE:
+        path = os.path.expanduser('~/logs')
+        if not os.path.isdir(path):
+            os.mkdir(path)
+        rotating_file = logging.handlers.RotatingFileHandler('%s/%s.log' % (path, process_name), maxBytes=10000000,
+                                                             backupCount=10, encoding='utf-8')
+        rotating_file.setLevel(logging.INFO)
+        loggers.append(rotating_file)
+
+    return loggers
 
 
 def configure_logging(process_name, handlers):
