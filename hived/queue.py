@@ -93,12 +93,12 @@ class ExternalQueue(object):
         if self.channel is None:
             self._connect()
 
-        for attempt in xrange(1, MAX_TRIES + 1):
+        for attempt in xrange(MAX_TRIES, 0, -1):
             try:
                 return getattr(self.channel, method)(**kwargs)
 
             except (AMQPError, IOError):
-                if attempt < MAX_TRIES:
+                if attempt > 1:
                     time.sleep(.5)
                 else:
                     raise
