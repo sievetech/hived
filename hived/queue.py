@@ -99,7 +99,7 @@ class ExternalQueue(object):
 
             except (AMQPError, IOError):
                 if attempt < MAX_TRIES:
-                    self._connect()
+                    time.sleep(.5)
                 else:
                     raise
 
