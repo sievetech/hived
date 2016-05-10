@@ -18,6 +18,15 @@ class BaseWorkerTest(unittest.TestCase):
         worker = BaseWorker(Mock(), process=process)
         self.assertEqual(worker.process, process)
 
+    def test_warn_using_default_message_validation(self):
+        worker = self.worker
+        logger = worker.logger
+        self.assertTrue(worker.validate_message({}))
+        logger.warning.assert_called_once_with(
+            '[%s %x] using fail-safe validate_message (always true)',
+            worker, id(worker),
+        )
+
     def test_send_invalid_messages_to_garbage(self):
         error = Mock()
         self.worker.send_message_to_garbage({'message': 'content'},

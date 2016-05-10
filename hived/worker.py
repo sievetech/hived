@@ -99,6 +99,8 @@ class BaseWorker(Thread):
         If it returns False or raises an exception, the message is
         sent to a garbage queue.
         """
+        self.logger.warning('[%s %x] using fail-safe validate_message '
+                            '(always true)', self, id(self))
         return True
 
     def get_task(self, message):
