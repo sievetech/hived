@@ -3,7 +3,7 @@ from amqp import AMQPError
 
 from mock import call, Mock, patch, ANY
 
-from hived.worker import BaseWorker
+from hived.worker import BaseWorker, BaseWorkerThread
 
 CLASS = 'hived.worker.BaseWorker.'
 
@@ -152,6 +152,30 @@ class BaseWorkerTest(unittest.TestCase):
 
     def test_process_task_raises_NotImplementedError(self):
         self.assertRaises(NotImplementedError, self.worker.process_task, Mock())
+
+
+class TestBaseWorkerThread(unittest.TestCase):
+
+    maxDiff = None
+
+    def test_subclass_of_base_worker(self):
+        self.assertTrue(issubclass(BaseWorkerThread, BaseWorker))
+        base_worker_thread_dir = [attr for attr in dir(BaseWorkerThread)
+                                  if attr != '__metaclass__']
+        base_worker_dir = [attr for attr in dir(BaseWorker)
+                           if attr != '__metaclass__']
+        self.assertEqual(base_worker_thread_dir, base_worker_dir)
+
+    @patch('hived.worker.warn')
+    def test_deprecated(self, warn):
+        assert not warn.called  # this is not the test, just a condition for it
+
+        class Worker(BaseWorkerThread):
+            def process_task(self, task):
+                raise NotImplementedError
+
+        warn.assert_called_once_with('use wetl.common.BaseWorker instead',
+                                     DeprecationWarning)
 
 
 if __name__ == '__main__':

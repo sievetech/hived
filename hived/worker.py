@@ -1,6 +1,7 @@
 import random
 from threading import Thread
 import traceback
+from warnings import warn
 from abc import ABCMeta, abstractmethod
 import time
 
@@ -118,8 +119,16 @@ class BaseWorker(Thread):
         return self.name
 
 
-# Deprecated
-BaseWorkerThread = BaseWorker
+class _BaseWorkerThreadMT(ABCMeta):
+
+    def __init__(cls, name, bases, attrs):
+        warn('use wetl.common.BaseWorker instead', DeprecationWarning)
+        ABCMeta.__init__(cls, name, bases, attrs)
+
+
+@add_metaclass(_BaseWorkerThreadMT)
+class BaseWorkerThread(BaseWorker):
+    pass
 
 
 class SubscriberWorkerThread(BaseWorker):
