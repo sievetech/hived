@@ -24,6 +24,7 @@ class ConnectionError(AMQPConnectionError):
 
 class SerializationError(Exception):
     def __init__(self, exc, body=None):
+        super(Exception, self).__init__(*exc.args)
         self.exc = exc
         self.body = body
 
