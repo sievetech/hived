@@ -122,7 +122,7 @@ class BaseWorker(Thread):
 class _BaseWorkerThreadMT(ABCMeta):
 
     def __init__(cls, name, bases, attrs):
-        warn('use wetl.common.BaseWorker instead', DeprecationWarning)
+        warn('use hived.worker.BaseWorker instead', DeprecationWarning)
         ABCMeta.__init__(cls, name, bases, attrs)
 
 

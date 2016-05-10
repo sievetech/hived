@@ -174,7 +174,7 @@ class TestBaseWorkerThread(unittest.TestCase):
             def process_task(self, task):
                 raise NotImplementedError
 
-        warn.assert_called_once_with('use wetl.common.BaseWorker instead',
+        warn.assert_called_once_with('use hived.worker.BaseWorker instead',
                                      DeprecationWarning)
 
 
