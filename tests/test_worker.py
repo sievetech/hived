@@ -20,7 +20,7 @@ class BaseWorkerTest(unittest.TestCase):
         self.worker.queue = Mock()
 
     def test_base_worker_is_abstract(self):
-        self.assertRaises(TypeError, BaseWorker, Mock, 'queue_name')
+        self.assertRaises(TypeError, BaseWorker, Mock(), 'queue_name')
 
     def test_init_adds_process_to_instance(self):
         process = Mock()
