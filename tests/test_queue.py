@@ -282,3 +282,12 @@ class ExternalQueueTest(unittest.TestCase):
             self.external_queue.setup_consumer(callback, ['queue_1'])
 
             self.assertEqual(mock_parse_message.call_args_list, [call(self.message)])
+
+
+class ExceptionsTest(unittest.TestCase):
+    def test_serializationerror_message(self):
+        excp = Exception('Some random error')
+
+        serialization_error = SerializationError(excp)
+
+        self.assertEqual('{}'.format(serialization_error), 'Some random error')
