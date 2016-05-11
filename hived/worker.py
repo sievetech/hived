@@ -1,21 +1,20 @@
 import random
 from threading import Thread
 import traceback
-
+from warnings import warn
+from abc import ABCMeta, abstractmethod
 import time
+
 from amqp import AMQPError
+from six import add_metaclass
 from hived import conf, trail
 from hived.queue import ExternalQueue
 
 
+@add_metaclass(ABCMeta)
 class BaseWorker(Thread):
-    """
-    Base worker class.
 
-    It should be extended by implementing the methods
-    process_task() and, optionally, validate_message().
-    It does not begin running until the run() method is called.
-    """
+    __metaclass__ = ABCMeta
     publisher_exchange = None
     task_class = None
 
@@ -99,6 +98,8 @@ class BaseWorker(Thread):
         If it returns False or raises an exception, the message is
         sent to a garbage queue.
         """
+        self.logger.warning('[%s %x] using fail-safe validate_message '
+                            '(always true)', self, id(self))
         return True
 
     def get_task(self, message):
@@ -106,20 +107,28 @@ class BaseWorker(Thread):
             return self.task_class(message)
         return message
 
+    @abstractmethod
     def process_task(self, task):
         """
         Does the actual processing of the task (should be implemented
         on derived classes).
         task: a deserialized json (the message).
         """
-        raise NotImplementedError()
 
     def __repr__(self):
         return self.name
 
 
-# Deprecated
-BaseWorkerThread = BaseWorker
+class _BaseWorkerThreadMT(ABCMeta):
+
+    def __init__(cls, name, bases, attrs):
+        warn('use hived.worker.BaseWorker instead', DeprecationWarning)
+        ABCMeta.__init__(cls, name, bases, attrs)
+
+
+@add_metaclass(_BaseWorkerThreadMT)
+class BaseWorkerThread(BaseWorker):
+    pass
 
 
 class SubscriberWorkerThread(BaseWorker):
