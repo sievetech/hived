@@ -94,7 +94,7 @@ class BaseWorkerTest(unittest.TestCase):
                              [call(self.worker.on_message),
                               call(self.worker.on_message)])
 
-    def test_run_logs_warning_after_amqp_error(self):
+    def test_run_logs_warning_with_stack_trace_after_amqp_error(self):
         def consume_mock():
             self.worker.stopped = True
             raise AMQPError
@@ -102,12 +102,13 @@ class BaseWorkerTest(unittest.TestCase):
         self.worker.queue.consume = consume_mock
         logger = self.worker.logger
 
-        with patch('time.sleep'):
+        with patch('time.sleep'), patch('traceback.format_exc') as traceback:
             self.worker.run()
 
-            logger.warning.assert_called_once_with({'exception': ANY})
+            logger.warning.assert_called_once()
+            traceback.assert_called_once()
 
-    def test_run_logs_warning_after_io_error(self):
+    def test_run_logs_warning_with_stack_trace_after_io_error(self):
         def consume_mock():
             self.worker.stopped = True
             raise IOError
@@ -115,12 +116,13 @@ class BaseWorkerTest(unittest.TestCase):
         self.worker.queue.consume = consume_mock
         logger = self.worker.logger
 
-        with patch('time.sleep'):
+        with patch('time.sleep'), patch('traceback.format_exc') as traceback:
             self.worker.run()
 
-            logger.warning.assert_called_once_with({'exception': ANY})
+            logger.warning.assert_called_once()
+            traceback.assert_called_once()
 
-    def test_run_logs_exception_after_unexpected_error(self):
+    def test_run_logs_exception_with_stack_trace_after_unexpected_error(self):
         def consume_mock():
             self.worker.stopped = True
             raise Exception
@@ -128,10 +130,11 @@ class BaseWorkerTest(unittest.TestCase):
         self.worker.queue.consume = consume_mock
         logger = self.worker.logger
 
-        with patch('time.sleep'):
+        with patch('time.sleep'), patch('traceback.format_exc') as traceback:
             self.worker.run()
 
-            logger.exception.assert_called_once_with({'exception': ANY})
+            logger.exception.assert_called_once()
+            traceback.assert_called_once()
 
     def test_get_task_instantiates_task_class(self):
         class W(BaseWorker):
