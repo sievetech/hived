@@ -58,12 +58,15 @@ class BaseWorker(Thread):
                 while not self.stopped:
                     self.queue.consume()
             except Exception as exc:
-                self.logger.exception({'exception': traceback.format_exc()})
                 trail.trace_exception(exc)
-                time.sleep(wait_time)
 
                 if isinstance(exc, (AMQPError, IOError)):
+                    self.logger.warning({'exception': traceback.format_exc()})
+                    time.sleep(wait_time)
                     self.queue.setup_consumer(self.on_message)
+                else:
+                    self.logger.exception({'exception': traceback.format_exc()})
+                    time.sleep(wait_time)
 
     def send_message_to_garbage(self, message, delivery_tag, error):
         self.logger.info('Sending message to garbage queue: %s. Error: %s', message, error)

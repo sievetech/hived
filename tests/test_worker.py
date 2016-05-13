@@ -80,6 +80,59 @@ class BaseWorkerTest(unittest.TestCase):
                              [call(self.worker.on_message),
                               call(self.worker.on_message)])
 
+    def test_run_calls_setup_consumer_again_after_io_error(self):
+        def consume_mock():
+            self.worker.stopped = True
+            raise IOError
+
+        self.worker.queue.consume = consume_mock
+        setup_consumer = self.worker.queue.setup_consumer = Mock()
+        with patch('time.sleep'):
+            self.worker.run()
+
+            self.assertEqual(setup_consumer.call_args_list,
+                             [call(self.worker.on_message),
+                              call(self.worker.on_message)])
+
+    def test_run_logs_warning_after_amqp_error(self):
+        def consume_mock():
+            self.worker.stopped = True
+            raise AMQPError
+
+        self.worker.queue.consume = consume_mock
+        logger = self.worker.logger
+
+        with patch('time.sleep'):
+            self.worker.run()
+
+            logger.warning.assert_called_once_with({'exception': ANY})
+
+    def test_run_logs_warning_after_io_error(self):
+        def consume_mock():
+            self.worker.stopped = True
+            raise IOError
+
+        self.worker.queue.consume = consume_mock
+        logger = self.worker.logger
+
+        with patch('time.sleep'):
+            self.worker.run()
+
+            logger.warning.assert_called_once_with({'exception': ANY})
+
+    def test_run_logs_exception_after_unexpected_error(self):
+        def consume_mock():
+            self.worker.stopped = True
+            raise Exception
+
+        self.worker.queue.consume = consume_mock
+        logger = self.worker.logger
+
+        with patch('time.sleep'):
+            self.worker.run()
+
+            logger.exception.assert_called_once_with({'exception': ANY})
+
     def test_get_task_instantiates_task_class(self):
         class W(BaseWorker):
             task_class = Mock()
